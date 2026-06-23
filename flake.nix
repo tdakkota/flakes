@@ -101,6 +101,41 @@
           meta = packageMeta // meta;
         };
 
+      mkZipPackage =
+        pkgs:
+        {
+          pname,
+          version,
+          url,
+          hash,
+          binaryPath ? pname,
+          executableName ? pname,
+          meta ? { },
+        }:
+        pkgs.stdenvNoCC.mkDerivation {
+          inherit pname version;
+          src = pkgs.fetchzip {
+            inherit url hash;
+            stripRoot = false;
+          };
+
+          dontStrip = true;
+
+          installPhase = ''
+            runHook preInstall
+
+            mkdir -p $out/share/${pname} $out/bin
+            cp -R $src/. $out/share/${pname}/
+            chmod -R u+w $out/share/${pname}
+            chmod 755 $out/share/${pname}/${binaryPath}
+            ln -s $out/share/${pname}/${binaryPath} $out/bin/${executableName}
+
+            runHook postInstall
+          '';
+
+          meta = packageMeta // meta;
+        };
+
       grokVersion = "0.2.59";
       grokArtifacts = {
         x86_64-linux = {
@@ -162,6 +197,37 @@
         aarch64-darwin = {
           platform = "darwin-arm64";
           hash = "sha256-ooDCOyEFJSGPW9hvABydvIm54HQQF1xak1UES/rcCvE=";
+        };
+      };
+
+      vibeVersion = "2.17.1";
+      vibeArtifacts = {
+        x86_64-linux = {
+          arch = "linux-x86_64";
+          hash = "sha256-N9uGYHSFfxmiznMdJPzy5bRVrVUXt3R3+y16u0NzSGk=";
+        };
+        aarch64-linux = {
+          arch = "linux-aarch64";
+          hash = "sha256-MFHNvRHpsCt6NzADuluy4hUhMUFs6rzfaTztomgSqqo=";
+        };
+        aarch64-darwin = {
+          arch = "darwin-aarch64";
+          hash = "sha256-fSp/gZ6lCekwTQDPGAlgTbThXoXuwBq0QEsS2wa+xzI=";
+        };
+      };
+
+      vibeAcpArtifacts = {
+        x86_64-linux = {
+          arch = "linux-x86_64";
+          hash = "sha256-TqxjAnzlXLCGIWvMrETBIprSDpOOwATfUmGm3+nkjqg=";
+        };
+        aarch64-linux = {
+          arch = "linux-aarch64";
+          hash = "sha256-bGyvD+nCTvVwc8VAw04SiZJV3N04EFFNtfL+QqaZx10=";
+        };
+        aarch64-darwin = {
+          arch = "darwin-aarch64";
+          hash = "sha256-6W3wSe+v0eCkOlsyk2jBthJHTeaWuFf5M/J9U+0cRI8=";
         };
       };
     in
@@ -246,12 +312,45 @@
               mainProgram = "claude";
             };
           };
+
+          vibeArtifact = vibeArtifacts.${system};
+          vibeAcpArtifact = vibeAcpArtifacts.${system};
+
+          vibe = mkZipPackage pkgs {
+            pname = "mistral-vibe";
+            version = vibeVersion;
+            url = "https://github.com/mistralai/mistral-vibe/releases/download/v${vibeVersion}/vibe-${vibeArtifact.arch}-${vibeVersion}.zip";
+            inherit (vibeArtifact) hash;
+            binaryPath = "vibe";
+            executableName = "vibe";
+            meta = {
+              description = "Mistral Vibe CLI";
+              homepage = "https://github.com/mistralai/mistral-vibe";
+              mainProgram = "vibe";
+            };
+          };
+
+          vibe-acp = mkZipPackage pkgs {
+            pname = "mistral-vibe-acp";
+            version = vibeVersion;
+            url = "https://github.com/mistralai/mistral-vibe/releases/download/v${vibeVersion}/vibe-acp-${vibeAcpArtifact.arch}-${vibeVersion}.zip";
+            inherit (vibeAcpArtifact) hash;
+            binaryPath = "vibe-acp";
+            executableName = "vibe-acp";
+            meta = {
+              description = "Mistral Vibe ACP";
+              homepage = "https://github.com/mistralai/mistral-vibe";
+              mainProgram = "vibe-acp";
+            };
+          };
         in
         {
           inherit
             antigravity
             codex
             grok
+            vibe
+            vibe-acp
             ;
           inherit claude-code;
 

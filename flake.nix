@@ -230,6 +230,54 @@
           hash = "sha256-6W3wSe+v0eCkOlsyk2jBthJHTeaWuFf5M/J9U+0cRI8=";
         };
       };
+
+      copilotVersion = "1.0.64";
+      copilotArtifacts = {
+        x86_64-linux = {
+          platform = "linux-x64";
+          hash = "sha256-PEElqyP+9fM+ihkk5IKn+1gCwFCLaTi+BpgNReE+DVY=";
+        };
+        aarch64-linux = {
+          platform = "linux-arm64";
+          hash = "sha256-yP+/EIbrozXZi7Fu99KPDnWLzyaXhF/Thq5jVGSr92E=";
+        };
+        aarch64-darwin = {
+          platform = "darwin-arm64";
+          hash = "sha256-ApO12yRnH2DFtrciH6Ph1z/4haMfWufrHwt+29soOuc=";
+        };
+      };
+
+      opencodeVersion = "1.17.9";
+      opencodeArtifacts = {
+        x86_64-linux = {
+          platform = "linux-x64";
+          hash = "sha256-/xg3nr4z3zRtKzs2CAzO+cDrCwzfaN1HFWfgMEZR23A=";
+        };
+        aarch64-linux = {
+          platform = "linux-arm64";
+          hash = "sha256-jMUR+XlOV15dPEwmVJMNBWcBht9knCa1CImsc8Zd3iE=";
+        };
+        aarch64-darwin = {
+          platform = "darwin-arm64";
+          hash = "sha256-kT2BOojKT2IJucSOVIvTdu700edMK7ETqpGqlseE0zI=";
+        };
+      };
+
+      kimiVersion = "1.48.0";
+      kimiArtifacts = {
+        x86_64-linux = {
+          platform = "x86_64-unknown-linux-gnu";
+          hash = "sha256-IC/vtawrG0OZO9SIlGdiKmlnYSTNCdwYE9qh1FUvwy4=";
+        };
+        aarch64-linux = {
+          platform = "aarch64-unknown-linux-gnu";
+          hash = "sha256-qY1ubgBVlTc/xUOlBXu0HYQUSdsQQHNSn5it34GJXmw=";
+        };
+        aarch64-darwin = {
+          platform = "aarch64-apple-darwin";
+          hash = "sha256-9L41Ir5Axx9kLe1mHzsIgDi5F8GhvTMXj+3iPlbv2IU=";
+        };
+      };
     in
     {
       packages = forEachSupportedSystem (
@@ -239,6 +287,9 @@
           codexArtifact = codexArtifacts.${system};
           antigravityArtifact = antigravityArtifacts.${system};
           claudeCodeArtifact = claudeCodeArtifacts.${system};
+          copilotArtifact = copilotArtifacts.${system};
+          opencodeArtifact = opencodeArtifacts.${system};
+          kimiArtifact = kimiArtifacts.${system};
 
           grok = mkBinaryPackage pkgs {
             pname = "grok-cli";
@@ -343,15 +394,85 @@
               mainProgram = "vibe-acp";
             };
           };
+
+          copilot = mkTarballPackage pkgs {
+            pname = "copilot-cli";
+            version = copilotVersion;
+            src = pkgs.fetchurl {
+              url = "https://github.com/github/copilot-cli/releases/download/v${copilotVersion}/copilot-${copilotArtifact.platform}.tar.gz";
+              inherit (copilotArtifact) hash;
+            };
+            binaryPath = "copilot";
+            executableName = "copilot";
+            meta = {
+              description = "GitHub Copilot CLI";
+              homepage = "https://github.com/github/copilot-cli";
+              mainProgram = "copilot";
+            };
+          };
+
+          opencode =
+            let
+              ext = if lib.strings.hasSuffix "darwin" system then "zip" else "tar.gz";
+              opencodeUrl = "https://github.com/anomalyco/opencode/releases/download/v${opencodeVersion}/opencode-${opencodeArtifact.platform}.${ext}";
+            in
+            if ext == "zip" then
+              mkZipPackage pkgs {
+                pname = "opencode";
+                version = opencodeVersion;
+                url = opencodeUrl;
+                inherit (opencodeArtifact) hash;
+                binaryPath = "opencode";
+                meta = {
+                  description = "opencode CLI";
+                  homepage = "https://github.com/anomalyco/opencode";
+                  mainProgram = "opencode";
+                };
+              }
+            else
+              mkTarballPackage pkgs {
+                pname = "opencode";
+                version = opencodeVersion;
+                src = pkgs.fetchurl {
+                  url = opencodeUrl;
+                  inherit (opencodeArtifact) hash;
+                };
+                binaryPath = "opencode";
+                meta = {
+                  description = "opencode CLI";
+                  homepage = "https://github.com/anomalyco/opencode";
+                  mainProgram = "opencode";
+                };
+              };
+
+          kimi = mkTarballPackage pkgs {
+            pname = "kimi-cli";
+            version = kimiVersion;
+            src = pkgs.fetchurl {
+              url = "https://github.com/MoonshotAI/kimi-cli/releases/download/${kimiVersion}/kimi-${kimiVersion}-${kimiArtifact.platform}.tar.gz";
+              inherit (kimiArtifact) hash;
+            };
+            binaryPath = "kimi";
+            executableName = "kimi";
+            meta = {
+              description = "Kimi (Moonshot AI) CLI";
+              homepage = "https://github.com/MoonshotAI/kimi-cli";
+              mainProgram = "kimi";
+            };
+          };
         in
         {
           inherit
             antigravity
             codex
+            copilot
             grok
+            kimi
+            opencode
             vibe
             vibe-acp
             ;
+          inherit (pkgs) proton-pass;
           inherit claude-code;
 
           agy = antigravity;

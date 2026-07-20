@@ -136,19 +136,19 @@
           meta = packageMeta // meta;
         };
 
-      grokVersion = "0.2.59";
+      grokVersion = "0.2.106";
       grokArtifacts = {
         x86_64-linux = {
           platform = "linux-x86_64";
-          hash = "sha256-G0Fh0vr0X8yaNJBjHM/jurNcDROAeiQ9g16wCz9vIik=";
+          hash = "sha256-cYDQ4DzCpJYDP/Oq4iI84jlEapgnpZ+qdgkcft1eHDg=";
         };
         aarch64-linux = {
           platform = "linux-aarch64";
-          hash = "sha256-BdzruY/U4mbV5YqvO5jKEqZxtxTVMg3MNnFiINi0HKg=";
+          hash = "sha256-0SvhaY1W1FQ/HxCVwsJs09F6ZOiHcmKWc3QJkcGI5P8=";
         };
         aarch64-darwin = {
           platform = "macos-aarch64";
-          hash = "sha256-cUkzP+npR+vXR6iIYoMJZXtqZS/6ZclJsBCbsold/pg=";
+          hash = "sha256-cin14qabBYMshtuCvr2lQekrXCSVj7+s9cj0YzlNMCc=";
         };
       };
 

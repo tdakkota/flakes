@@ -71,7 +71,11 @@ func registry() []versionGroup {
 		{
 			name:          "grok",
 			nixVersionVar: "grokVersion",
-			fetchLatest:   nil, // no known version feed; bump with -set grok=X.Y.Z
+			// Same plaintext channel-pointer endpoint https://x.ai/cli/install.sh reads
+			// (BASE_URL_PRIMARY/$GROK_CHANNEL, default channel "stable").
+			fetchLatest: func(ctx context.Context) (string, error) {
+				return httpGetString(ctx, "https://x.ai/cli/stable")
+			},
 			tables: []artifactTable{{
 				nixVar: "grokArtifacts",
 				systems: map[string]func(context.Context, string) (artifact, error){

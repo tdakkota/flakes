@@ -21,7 +21,7 @@ jobs:
         run: nix flake check --no-build
 
       - name: nixfmt --check
-        run: nix run nixpkgs#nixfmt -- --check flake.nix
+        run: nix run nixpkgs#nixfmt -- --check flake.nix versions.nix
 
   go:
     runs-on: ubuntu-latest

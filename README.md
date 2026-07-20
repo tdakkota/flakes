@@ -65,12 +65,3 @@ go run . -flake ../../flake.nix -set grok=0.3.0 -write   # packages with no vers
 
 `grok` and `antigravity` have no discoverable upstream version feed and
 are always reported as manual.
-
-A [scheduled workflow](.github/workflows/bump.yml) runs this daily and
-opens a PR (branch `auto/bump-versions`) when there's something to bump -
-review it before merging, since it pulls binaries from third-party
-download endpoints. [`ci.yml`](.github/workflows/ci.yml) runs `nix flake
-check`, `nixfmt --check`, and the usual Go checks on every push/PR.
-[Dependabot](.github/dependabot.yml) covers `tools/bump`'s Go dependencies
-and the workflow actions themselves - it can't track Nix flake inputs or
-the pinned CLI versions, hence `tools/bump`.

@@ -30,12 +30,19 @@ nix run .#claude-code
 nix profile install .#codex
 ```
 
-## PKGBUILDs
+## Installing on Arch Linux
 
 `claude-code`'s Arch package is generated straight from the same
 version/url/hash data used to build the Nix package (`mkPkgbuild` in
-`flake.nix`), so the two can't drift apart. Regenerate it into
-`pkgbuilds/claude-code-bin/PKGBUILD` with:
+`flake.nix`), so the two can't drift apart. It isn't published to the AUR,
+so `yay -S` won't find it - build and install it locally instead:
+
+```sh
+cd pkgbuilds/claude-code-bin
+makepkg -si
+```
+
+Regenerate the PKGBUILD (e.g. after `tools/bump` updates `flake.nix`) with:
 
 ```sh
 nix run .#gen-pkgbuilds
@@ -58,3 +65,12 @@ go run . -flake ../../flake.nix -set grok=0.3.0 -write   # packages with no vers
 
 `grok` and `antigravity` have no discoverable upstream version feed and
 are always reported as manual.
+
+A [scheduled workflow](.github/workflows/bump.yml) runs this daily and
+opens a PR (branch `auto/bump-versions`) when there's something to bump -
+review it before merging, since it pulls binaries from third-party
+download endpoints. [`ci.yml`](.github/workflows/ci.yml) runs `nix flake
+check`, `nixfmt --check`, and the usual Go checks on every push/PR.
+[Dependabot](.github/dependabot.yml) covers `tools/bump`'s Go dependencies
+and the workflow actions themselves - it can't track Nix flake inputs or
+the pinned CLI versions, hence `tools/bump`.

@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # tools/bump is the only Go module in this repo.
+  - package-ecosystem: gomod
+    directory: "/tools/bump"
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

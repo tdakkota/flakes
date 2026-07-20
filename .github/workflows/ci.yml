@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  flake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+
+      # --no-build: evaluate only, don't download/build every package's
+      # (sometimes 100MB+) artifact on every push.
+      - name: nix flake check
+        run: nix flake check --no-build
+
+      - name: nixfmt --check
+        run: nix run nixpkgs#nixfmt -- --check flake.nix
+
+  go:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/bump
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - run: go build ./...
+      - run: go vet ./...
+
+      - name: gofmt check
+        run: |
+          out="$(gofmt -l .)"
+          if [ -n "$out" ]; then
+            echo "$out"
+            exit 1
+          fi

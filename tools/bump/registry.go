@@ -3,267 +3,196 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/go-faster/errors"
 )
 
 // artifact is what a per-system fetch produces: the exact Nix SRI hash
-// string to patch into a `hash = "...";` field in flake.nix.
+// string to write into that system's "hash" field in versions.nix.
 type artifact struct {
 	sri string
 }
 
-// artifactTable mirrors one `xArtifacts = { system = { ...; hash }; };`
-// block in flake.nix.
-type artifactTable struct {
-	nixVar  string
-	systems map[string]func(ctx context.Context, version string) (artifact, error)
+// fetchArtifactFunc builds and hashes the artifact for one Nix system at a
+// given version. fields carries that system's other current artifact
+// fields (platform/target/arch/... - whatever versions.nix already has for
+// it), which is how per-package URL shape stays out of the Go code below.
+type fetchArtifactFunc func(ctx context.Context, system string, fields map[string]string, version string) (artifact, error)
+
+// target is one top-level entry this group writes into versions.nix. Most
+// groups have exactly one; vibe/vibe-acp share a version but are separate
+// entries (separate Nix packages, separate artifact shapes).
+type target struct {
+	nixKey string
+	fetch  fetchArtifactFunc
 }
 
-// versionGroup mirrors one `xVersion` pin (and everything derived from it -
-// possibly several artifact tables, e.g. vibe + vibe-acp share a version).
+// versionGroup is one thing tools/bump checks: an upstream version feed
+// (nil if there isn't one - bump via -set instead) plus the versions.nix
+// entries it drives.
 type versionGroup struct {
-	name          string
-	nixVersionVar string
-	// fetchLatest is nil for upstreams with no discoverable version feed
-	// (grok, antigravity); those can only be bumped via -set.
+	name string
+	// fetchLatest is nil for upstreams with no discoverable version feed;
+	// those can only be bumped via -set.
 	fetchLatest func(ctx context.Context) (string, error)
-	tables      []artifactTable
+	targets     []target
 }
 
-// downloadArtifact hashes the raw downloaded file, matching what Nix's
+// fetchDownload hashes the raw downloaded file, matching what Nix's
 // `fetchurl` fixed-output hash covers - used by mkBinaryPackage and
 // mkTarballPackage.
-func downloadArtifact(algo, url string) func(ctx context.Context, version string) (artifact, error) {
-	return func(ctx context.Context, version string) (artifact, error) {
-		hex, err := downloadAndHash(ctx, url, algo)
-		if err != nil {
-			return artifact{}, err
-		}
-		sri, err := sriFromHex(algo, hex)
-		if err != nil {
-			return artifact{}, err
-		}
-		return artifact{sri: sri}, nil
+func fetchDownload(ctx context.Context, algo, url string) (artifact, error) {
+	hex, err := downloadAndHash(ctx, url, algo)
+	if err != nil {
+		return artifact{}, err
 	}
+	sri, err := sriFromHex(algo, hex)
+	if err != nil {
+		return artifact{}, err
+	}
+	return artifact{sri: sri}, nil
 }
 
-// zipArtifact hashes the *unpacked* contents of a zip file, matching what
+// fetchZip hashes the *unpacked* contents of a zip file, matching what
 // Nix's `fetchzip` (with stripRoot = false, as mkZipPackage uses) hashes -
-// a NAR hash of the extracted tree, not the raw zip bytes. There's no pure-Go
-// way to reproduce that, so this shells out to the same `nix` binary that
-// will ultimately build the package.
-func zipArtifact(url string) func(ctx context.Context, version string) (artifact, error) {
-	return func(ctx context.Context, version string) (artifact, error) {
-		sri, err := fetchZipNarHash(ctx, url)
-		if err != nil {
-			return artifact{}, err
-		}
-		return artifact{sri: sri}, nil
+// a NAR hash of the extracted tree, not the raw zip bytes. There's no
+// pure-Go way to reproduce that, so this shells out to the same `nix`
+// binary that will ultimately build the package.
+func fetchZip(ctx context.Context, url string) (artifact, error) {
+	sri, err := fetchZipNarHash(ctx, url)
+	if err != nil {
+		return artifact{}, err
 	}
+	return artifact{sri: sri}, nil
 }
 
-// registry mirrors the package definitions in flake.nix. URL templates and
-// per-system platform strings are hand-kept in sync with it: there is no way
-// to derive them generically since every upstream names things differently.
+// registry mirrors the package definitions in versions.nix/flake.nix. URL
+// templates are hand-kept in sync with flake.nix: there's no way to derive
+// them generically since every upstream names things differently.
 func registry() []versionGroup {
 	return []versionGroup{
 		{
-			name:          "grok",
-			nixVersionVar: "grokVersion",
+			name: "grok",
 			// Same plaintext channel-pointer endpoint https://x.ai/cli/install.sh reads
 			// (BASE_URL_PRIMARY/$GROK_CHANNEL, default channel "stable").
 			fetchLatest: func(ctx context.Context) (string, error) {
 				return httpGetString(ctx, "https://x.ai/cli/stable")
 			},
-			tables: []artifactTable{{
-				nixVar: "grokArtifacts",
-				systems: map[string]func(context.Context, string) (artifact, error){
-					"x86_64-linux": func(ctx context.Context, v string) (artifact, error) {
-						return downloadArtifact("sha256", fmt.Sprintf("https://x.ai/cli/grok-%s-linux-x86_64", v))(ctx, v)
-					},
-					"aarch64-linux": func(ctx context.Context, v string) (artifact, error) {
-						return downloadArtifact("sha256", fmt.Sprintf("https://x.ai/cli/grok-%s-linux-aarch64", v))(ctx, v)
-					},
-					"aarch64-darwin": func(ctx context.Context, v string) (artifact, error) {
-						return downloadArtifact("sha256", fmt.Sprintf("https://x.ai/cli/grok-%s-macos-aarch64", v))(ctx, v)
-					},
+			targets: []target{{
+				nixKey: "grok",
+				fetch: func(ctx context.Context, system string, fields map[string]string, version string) (artifact, error) {
+					url := fmt.Sprintf("https://x.ai/cli/grok-%s-%s", version, fields["platform"])
+					return fetchDownload(ctx, "sha256", url)
 				},
 			}},
 		},
 		{
-			name:          "antigravity",
-			nixVersionVar: "antigravityVersion",
-			fetchLatest:   nil, // download URL embeds an opaque build-id suffix that isn't derivable from the version alone
-			tables:        nil,
-		},
-		{
-			name:          "codex",
-			nixVersionVar: "codexVersion",
+			name: "codex",
 			fetchLatest: func(ctx context.Context) (string, error) {
 				return githubLatestTag(ctx, "openai/codex", "rust-v")
 			},
-			tables: []artifactTable{{
-				nixVar: "codexArtifacts",
-				systems: map[string]func(context.Context, string) (artifact, error){
-					"x86_64-linux": func(ctx context.Context, v string) (artifact, error) {
-						url := fmt.Sprintf("https://github.com/openai/codex/releases/download/rust-v%s/codex-package-x86_64-unknown-linux-musl.tar.gz", v)
-						return downloadArtifact("sha256", url)(ctx, v)
-					},
-					"aarch64-linux": func(ctx context.Context, v string) (artifact, error) {
-						url := fmt.Sprintf("https://github.com/openai/codex/releases/download/rust-v%s/codex-package-aarch64-unknown-linux-musl.tar.gz", v)
-						return downloadArtifact("sha256", url)(ctx, v)
-					},
-					"aarch64-darwin": func(ctx context.Context, v string) (artifact, error) {
-						url := fmt.Sprintf("https://github.com/openai/codex/releases/download/rust-v%s/codex-package-aarch64-apple-darwin.tar.gz", v)
-						return downloadArtifact("sha256", url)(ctx, v)
-					},
+			targets: []target{{
+				nixKey: "codex",
+				fetch: func(ctx context.Context, system string, fields map[string]string, version string) (artifact, error) {
+					url := fmt.Sprintf(
+						"https://github.com/openai/codex/releases/download/rust-v%s/codex-package-%s.tar.gz",
+						version, fields["target"],
+					)
+					return fetchDownload(ctx, "sha256", url)
 				},
 			}},
 		},
 		{
-			name:          "claude-code",
-			nixVersionVar: "claudeCodeVersion",
+			name: "claude-code",
 			fetchLatest: func(ctx context.Context) (string, error) {
 				return httpGetString(ctx, "https://downloads.claude.ai/claude-code-releases/latest")
 			},
-			tables: []artifactTable{{
-				nixVar: "claudeCodeArtifacts",
-				systems: map[string]func(context.Context, string) (artifact, error){
-					"x86_64-linux": func(ctx context.Context, v string) (artifact, error) {
-						url := fmt.Sprintf("https://downloads.claude.ai/claude-code-releases/%s/linux-x64/claude", v)
-						return downloadArtifact("sha256", url)(ctx, v)
-					},
-					"aarch64-linux": func(ctx context.Context, v string) (artifact, error) {
-						url := fmt.Sprintf("https://downloads.claude.ai/claude-code-releases/%s/linux-arm64/claude", v)
-						return downloadArtifact("sha256", url)(ctx, v)
-					},
-					"aarch64-darwin": func(ctx context.Context, v string) (artifact, error) {
-						url := fmt.Sprintf("https://downloads.claude.ai/claude-code-releases/%s/darwin-arm64/claude", v)
-						return downloadArtifact("sha256", url)(ctx, v)
-					},
+			targets: []target{{
+				nixKey: "claude-code",
+				fetch: func(ctx context.Context, system string, fields map[string]string, version string) (artifact, error) {
+					url := fmt.Sprintf("https://downloads.claude.ai/claude-code-releases/%s/%s/claude", version, fields["platform"])
+					return fetchDownload(ctx, "sha256", url)
 				},
 			}},
 		},
 		{
-			name:          "vibe",
-			nixVersionVar: "vibeVersion",
+			name: "vibe",
 			fetchLatest: func(ctx context.Context) (string, error) {
 				return githubLatestTag(ctx, "mistralai/mistral-vibe", "v")
 			},
-			tables: []artifactTable{
+			targets: []target{
 				{
-					nixVar: "vibeArtifacts",
-					systems: map[string]func(context.Context, string) (artifact, error){
-						"x86_64-linux": func(ctx context.Context, v string) (artifact, error) {
-							url := fmt.Sprintf("https://github.com/mistralai/mistral-vibe/releases/download/v%s/vibe-linux-x86_64-%s.zip", v, v)
-							return zipArtifact(url)(ctx, v)
-						},
-						"aarch64-linux": func(ctx context.Context, v string) (artifact, error) {
-							url := fmt.Sprintf("https://github.com/mistralai/mistral-vibe/releases/download/v%s/vibe-linux-aarch64-%s.zip", v, v)
-							return zipArtifact(url)(ctx, v)
-						},
-						"aarch64-darwin": func(ctx context.Context, v string) (artifact, error) {
-							url := fmt.Sprintf("https://github.com/mistralai/mistral-vibe/releases/download/v%s/vibe-darwin-aarch64-%s.zip", v, v)
-							return zipArtifact(url)(ctx, v)
-						},
+					nixKey: "vibe",
+					fetch: func(ctx context.Context, system string, fields map[string]string, version string) (artifact, error) {
+						url := fmt.Sprintf(
+							"https://github.com/mistralai/mistral-vibe/releases/download/v%s/vibe-%s-%s.zip",
+							version, fields["arch"], version,
+						)
+						return fetchZip(ctx, url)
 					},
 				},
 				{
-					nixVar: "vibeAcpArtifacts",
-					systems: map[string]func(context.Context, string) (artifact, error){
-						"x86_64-linux": func(ctx context.Context, v string) (artifact, error) {
-							url := fmt.Sprintf("https://github.com/mistralai/mistral-vibe/releases/download/v%s/vibe-acp-linux-x86_64-%s.zip", v, v)
-							return zipArtifact(url)(ctx, v)
-						},
-						"aarch64-linux": func(ctx context.Context, v string) (artifact, error) {
-							url := fmt.Sprintf("https://github.com/mistralai/mistral-vibe/releases/download/v%s/vibe-acp-linux-aarch64-%s.zip", v, v)
-							return zipArtifact(url)(ctx, v)
-						},
-						"aarch64-darwin": func(ctx context.Context, v string) (artifact, error) {
-							url := fmt.Sprintf("https://github.com/mistralai/mistral-vibe/releases/download/v%s/vibe-acp-darwin-aarch64-%s.zip", v, v)
-							return zipArtifact(url)(ctx, v)
-						},
+					nixKey: "vibe-acp",
+					fetch: func(ctx context.Context, system string, fields map[string]string, version string) (artifact, error) {
+						url := fmt.Sprintf(
+							"https://github.com/mistralai/mistral-vibe/releases/download/v%s/vibe-acp-%s-%s.zip",
+							version, fields["arch"], version,
+						)
+						return fetchZip(ctx, url)
 					},
 				},
 			},
 		},
 		{
-			name:          "copilot",
-			nixVersionVar: "copilotVersion",
+			name: "copilot",
 			fetchLatest: func(ctx context.Context) (string, error) {
 				return githubLatestTag(ctx, "github/copilot-cli", "v")
 			},
-			tables: []artifactTable{{
-				nixVar: "copilotArtifacts",
-				systems: map[string]func(context.Context, string) (artifact, error){
-					"x86_64-linux": func(ctx context.Context, v string) (artifact, error) {
-						url := fmt.Sprintf("https://github.com/github/copilot-cli/releases/download/v%s/copilot-linux-x64.tar.gz", v)
-						return downloadArtifact("sha256", url)(ctx, v)
-					},
-					"aarch64-linux": func(ctx context.Context, v string) (artifact, error) {
-						url := fmt.Sprintf("https://github.com/github/copilot-cli/releases/download/v%s/copilot-linux-arm64.tar.gz", v)
-						return downloadArtifact("sha256", url)(ctx, v)
-					},
-					"aarch64-darwin": func(ctx context.Context, v string) (artifact, error) {
-						url := fmt.Sprintf("https://github.com/github/copilot-cli/releases/download/v%s/copilot-darwin-arm64.tar.gz", v)
-						return downloadArtifact("sha256", url)(ctx, v)
-					},
+			targets: []target{{
+				nixKey: "copilot",
+				fetch: func(ctx context.Context, system string, fields map[string]string, version string) (artifact, error) {
+					url := fmt.Sprintf("https://github.com/github/copilot-cli/releases/download/v%s/copilot-%s.tar.gz", version, fields["platform"])
+					return fetchDownload(ctx, "sha256", url)
 				},
 			}},
 		},
 		{
-			name:          "opencode",
-			nixVersionVar: "opencodeVersion",
+			name: "opencode",
 			fetchLatest: func(ctx context.Context) (string, error) {
 				return githubLatestTag(ctx, "anomalyco/opencode", "v")
 			},
-			tables: []artifactTable{{
-				nixVar: "opencodeArtifacts",
-				systems: map[string]func(context.Context, string) (artifact, error){
-					"x86_64-linux": func(ctx context.Context, v string) (artifact, error) {
-						url := fmt.Sprintf("https://github.com/anomalyco/opencode/releases/download/v%s/opencode-linux-x64.tar.gz", v)
-						return downloadArtifact("sha256", url)(ctx, v)
-					},
-					"aarch64-linux": func(ctx context.Context, v string) (artifact, error) {
-						url := fmt.Sprintf("https://github.com/anomalyco/opencode/releases/download/v%s/opencode-linux-arm64.tar.gz", v)
-						return downloadArtifact("sha256", url)(ctx, v)
-					},
-					"aarch64-darwin": func(ctx context.Context, v string) (artifact, error) {
-						// opencode ships darwin as a .zip (mkZipPackage/fetchzip), unlike its .tar.gz linux builds.
-						url := fmt.Sprintf("https://github.com/anomalyco/opencode/releases/download/v%s/opencode-darwin-arm64.zip", v)
-						return zipArtifact(url)(ctx, v)
-					},
+			targets: []target{{
+				nixKey: "opencode",
+				// darwin ships as .zip (mkZipPackage/fetchzip); linux ships as .tar.gz
+				// (mkTarballPackage/fetchurl) - see flake.nix's opencode package.
+				fetch: func(ctx context.Context, system string, fields map[string]string, version string) (artifact, error) {
+					base := fmt.Sprintf("https://github.com/anomalyco/opencode/releases/download/v%s/opencode-%s", version, fields["platform"])
+					if strings.HasSuffix(system, "darwin") {
+						return fetchZip(ctx, base+".zip")
+					}
+					return fetchDownload(ctx, "sha256", base+".tar.gz")
 				},
 			}},
 		},
 		{
-			name:          "kimi",
-			nixVersionVar: "kimiVersion",
+			name: "kimi",
 			fetchLatest: func(ctx context.Context) (string, error) {
 				return githubLatestTag(ctx, "MoonshotAI/kimi-cli", "")
 			},
-			tables: []artifactTable{{
-				nixVar: "kimiArtifacts",
-				systems: map[string]func(context.Context, string) (artifact, error){
-					"x86_64-linux": func(ctx context.Context, v string) (artifact, error) {
-						url := fmt.Sprintf("https://github.com/MoonshotAI/kimi-cli/releases/download/%s/kimi-%s-x86_64-unknown-linux-gnu.tar.gz", v, v)
-						return downloadArtifact("sha256", url)(ctx, v)
-					},
-					"aarch64-linux": func(ctx context.Context, v string) (artifact, error) {
-						url := fmt.Sprintf("https://github.com/MoonshotAI/kimi-cli/releases/download/%s/kimi-%s-aarch64-unknown-linux-gnu.tar.gz", v, v)
-						return downloadArtifact("sha256", url)(ctx, v)
-					},
-					"aarch64-darwin": func(ctx context.Context, v string) (artifact, error) {
-						url := fmt.Sprintf("https://github.com/MoonshotAI/kimi-cli/releases/download/%s/kimi-%s-aarch64-apple-darwin.tar.gz", v, v)
-						return downloadArtifact("sha256", url)(ctx, v)
-					},
+			targets: []target{{
+				nixKey: "kimi",
+				fetch: func(ctx context.Context, system string, fields map[string]string, version string) (artifact, error) {
+					url := fmt.Sprintf(
+						"https://github.com/MoonshotAI/kimi-cli/releases/download/%s/kimi-%s-%s.tar.gz",
+						version, version, fields["platform"],
+					)
+					return fetchDownload(ctx, "sha256", url)
 				},
 			}},
 		},
 		{
-			name:          "claude-desktop",
-			nixVersionVar: "claudeDesktopVersion",
+			name: "claude-desktop",
 			fetchLatest: func(ctx context.Context) (string, error) {
 				s, err := aptLatest(ctx, "https://downloads.claude.ai/claude-desktop/apt/stable/dists/stable/main/binary-amd64/Packages", "claude-desktop")
 				if err != nil {
@@ -271,17 +200,13 @@ func registry() []versionGroup {
 				}
 				return s["Version"], nil
 			},
-			tables: []artifactTable{{
-				nixVar: "claudeDesktopArtifacts",
-				systems: map[string]func(context.Context, string) (artifact, error){
-					"x86_64-linux":  claudeDesktopArtifact("amd64"),
-					"aarch64-linux": claudeDesktopArtifact("arm64"),
-				},
+			targets: []target{{
+				nixKey: "claude-desktop",
+				fetch:  claudeDesktopArtifact,
 			}},
 		},
 		{
-			name:          "proton-pass",
-			nixVersionVar: "protonPassVersion",
+			name: "proton-pass",
 			fetchLatest: func(ctx context.Context) (string, error) {
 				r, err := protonLatestStable(ctx, "https://proton.me/download/PassDesktop/linux/version.json")
 				if err != nil {
@@ -289,58 +214,57 @@ func registry() []versionGroup {
 				}
 				return r.Version, nil
 			},
-			tables: []artifactTable{{
-				nixVar: "protonPassArtifacts",
-				systems: map[string]func(context.Context, string) (artifact, error){
-					"x86_64-linux":   protonPassArtifact("https://proton.me/download/PassDesktop/linux/version.json"),
-					"aarch64-darwin": protonPassArtifact("https://proton.me/download/PassDesktop/macos/version.json"),
-				},
+			targets: []target{{
+				nixKey: "proton-pass",
+				fetch:  protonPassArtifact,
 			}},
 		},
 	}
 }
 
-func claudeDesktopArtifact(arch string) func(ctx context.Context, version string) (artifact, error) {
-	binaryURL := map[string]string{
+func claudeDesktopArtifact(ctx context.Context, system string, fields map[string]string, version string) (artifact, error) {
+	arch := fields["arch"]
+	indexURL := map[string]string{
 		"amd64": "https://downloads.claude.ai/claude-desktop/apt/stable/dists/stable/main/binary-amd64/Packages",
 		"arm64": "https://downloads.claude.ai/claude-desktop/apt/stable/dists/stable/main/binary-arm64/Packages",
 	}[arch]
 
-	return func(ctx context.Context, version string) (artifact, error) {
-		stanzas, err := fetchAptPackages(ctx, binaryURL)
-		if err != nil {
-			return artifact{}, err
-		}
-		want := fmt.Sprintf("pool/main/c/claude-desktop/claude-desktop_%s_%s.deb", version, arch)
-		for _, s := range stanzas {
-			if s["Package"] == "claude-desktop" && s["Filename"] == want {
-				sri, err := sriFromHex("sha256", s["SHA256"])
-				if err != nil {
-					return artifact{}, err
-				}
-				return artifact{sri: sri}, nil
-			}
-		}
-		return artifact{}, errors.Errorf("claude-desktop %s (%s) not found in apt index", version, arch)
+	stanzas, err := fetchAptPackages(ctx, indexURL)
+	if err != nil {
+		return artifact{}, err
 	}
+	want := fmt.Sprintf("pool/main/c/claude-desktop/claude-desktop_%s_%s.deb", version, arch)
+	for _, s := range stanzas {
+		if s["Package"] == "claude-desktop" && s["Filename"] == want {
+			sri, err := sriFromHex("sha256", s["SHA256"])
+			if err != nil {
+				return artifact{}, err
+			}
+			return artifact{sri: sri}, nil
+		}
+	}
+	return artifact{}, errors.Errorf("claude-desktop %s (%s) not found in apt index", version, arch)
 }
 
-func protonPassArtifact(versionJSONURL string) func(ctx context.Context, version string) (artifact, error) {
-	return func(ctx context.Context, version string) (artifact, error) {
-		r, err := protonLatestStable(ctx, versionJSONURL)
-		if err != nil {
-			return artifact{}, err
-		}
-		if r.Version != version {
-			return artifact{}, errors.Errorf("requested version %s but feed's latest Stable is %s", version, r.Version)
-		}
-		if len(r.File) == 0 {
-			return artifact{}, errors.Errorf("no File entries for proton-pass %s", version)
-		}
-		sri, err := sriFromHex("sha512", r.File[0].Sha512CheckSum)
-		if err != nil {
-			return artifact{}, err
-		}
-		return artifact{sri: sri}, nil
+func protonPassArtifact(ctx context.Context, system string, fields map[string]string, version string) (artifact, error) {
+	versionJSONURL := "https://proton.me/download/PassDesktop/linux/version.json"
+	if strings.HasSuffix(system, "darwin") {
+		versionJSONURL = "https://proton.me/download/PassDesktop/macos/version.json"
 	}
+
+	r, err := protonLatestStable(ctx, versionJSONURL)
+	if err != nil {
+		return artifact{}, err
+	}
+	if r.Version != version {
+		return artifact{}, errors.Errorf("requested version %s but feed's latest Stable is %s", version, r.Version)
+	}
+	if len(r.File) == 0 {
+		return artifact{}, errors.Errorf("no File entries for proton-pass %s", version)
+	}
+	sri, err := sriFromHex("sha512", r.File[0].Sha512CheckSum)
+	if err != nil {
+		return artifact{}, err
+	}
+	return artifact{sri: sri}, nil
 }

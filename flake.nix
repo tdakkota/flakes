@@ -8,6 +8,11 @@
     let
       inherit (inputs.nixpkgs) lib;
 
+      # Versions/urls/hashes for every packaged tool - regenerated wholesale by
+      # tools/bump instead of hand-edited, so it's kept out of the rest of this
+      # file's logic (builders, PKGBUILD generation, package wiring).
+      versions = import ./versions.nix;
+
       supportedSystems = [
         "x86_64-linux"
         "aarch64-linux"
@@ -136,69 +141,14 @@
           meta = packageMeta // meta;
         };
 
-      grokVersion = "0.2.106";
-      grokArtifacts = {
-        x86_64-linux = {
-          platform = "linux-x86_64";
-          hash = "sha256-cYDQ4DzCpJYDP/Oq4iI84jlEapgnpZ+qdgkcft1eHDg=";
-        };
-        aarch64-linux = {
-          platform = "linux-aarch64";
-          hash = "sha256-0SvhaY1W1FQ/HxCVwsJs09F6ZOiHcmKWc3QJkcGI5P8=";
-        };
-        aarch64-darwin = {
-          platform = "macos-aarch64";
-          hash = "sha256-cin14qabBYMshtuCvr2lQekrXCSVj7+s9cj0YzlNMCc=";
-        };
-      };
+      grokVersion = versions.grok.version;
+      grokArtifacts = versions.grok.artifacts;
 
-      codexVersion = "0.144.6";
-      codexArtifacts = {
-        x86_64-linux = {
-          target = "x86_64-unknown-linux-musl";
-          hash = "sha256-ma5I5HQ9psUw7NmYqy9+ZlcsCS9BkMiNyoI2wHsGzh0=";
-        };
-        aarch64-linux = {
-          target = "aarch64-unknown-linux-musl";
-          hash = "sha256-tDWYlrtUjgL91y6gyzOV/oqI0g06SkIcRIHlBPjokn8=";
-        };
-        aarch64-darwin = {
-          target = "aarch64-apple-darwin";
-          hash = "sha256-vL+nZlC2xYFQWqUXjB55nTf/EvxDo1/xbJC5f6dX5j8=";
-        };
-      };
+      codexVersion = versions.codex.version;
+      codexArtifacts = versions.codex.artifacts;
 
-      antigravityVersion = "1.0.10";
-      antigravityArtifacts = {
-        x86_64-linux = {
-          path = "linux-x64/cli_linux_x64.tar.gz";
-          hash = "sha256-ZUfPmjcifyYAT6S4BUGLHflvVMV7lyPKfRCGTSYQuw8=";
-        };
-        aarch64-linux = {
-          path = "linux-arm/cli_linux_arm64.tar.gz";
-          hash = "sha256-RnT6vDaBIh5UyQ0VB3yal6JepxIiAB2r5EvxV26IhZM=";
-        };
-        aarch64-darwin = {
-          path = "darwin-arm/cli_mac_arm64.tar.gz";
-          hash = "sha256-yFe1/HA1RgNZ6OZK7kB2jm9SKDWLQnG8fe0Gw+a80mA=";
-        };
-      };
-
-      claudeCodeVersion = "2.1.215";
-      claudeCodeArtifacts = {
-        x86_64-linux = {
-          platform = "linux-x64";
-          hash = "sha256-we//qvNwqhh8tqCd2T1OURxkaJmwB4R2+DeRtmS95/4=";
-        };
-        aarch64-linux = {
-          platform = "linux-arm64";
-          hash = "sha256-K0Oj1bB4chfl1zgfrULHMUKSVG/p2564ubN53pBQmzA=";
-        };
-        aarch64-darwin = {
-          platform = "darwin-arm64";
-          hash = "sha256-kGCLXFq1BOludzZc6mID0EbikdWbK7Qs8o3LLM353Vg=";
-        };
-      };
+      claudeCodeVersion = versions.claude-code.version;
+      claudeCodeArtifacts = versions.claude-code.artifacts;
       claudeCodeUrl =
         platform:
         "https://downloads.claude.ai/claude-code-releases/${claudeCodeVersion}/${platform}/claude";
@@ -297,80 +247,187 @@
             chmod 755 "$pkgdir/usr/bin/claude"'';
       };
 
-      vibeVersion = "2.21.0";
-      vibeArtifacts = {
-        x86_64-linux = {
-          arch = "linux-x86_64";
-          hash = "sha256-bn55VqID01SdoA+0yp7nzYtTHnw9qFp37D+bbSvC2bw=";
-        };
-        aarch64-linux = {
-          arch = "linux-aarch64";
-          hash = "sha256-NXojcwcjGtp2hfiIHgRaUzTiQoEq8QgMej8YcyF8AQk=";
-        };
-        aarch64-darwin = {
-          arch = "darwin-aarch64";
-          hash = "sha256-LguNMpOX2aCF8OCaWBXPm02Fs0M0qjE4Xc4LWG7s/z8=";
+      pkgbuildArchMap = {
+        x86_64 = "x86_64-linux";
+        aarch64 = "aarch64-linux";
+      };
+
+      # For fetchurl-based packages, the pinned hash already *is* the raw file hash
+      # pacman's sha256sums needs - just convert it to hex.
+      mkRawPkgbuildArtifacts =
+        urlFor: artifactsTable:
+        lib.mapAttrs (
+          arch: system:
+          let
+            a = artifactsTable.${system};
+          in
+          {
+            url = urlFor a;
+            sha256Hex = builtins.convertHash {
+              hash = a.hash;
+              toHashFormat = "base16";
+              hashAlgo = "sha256";
+            };
+          }
+        ) pkgbuildArchMap;
+
+      # For fetchzip-based packages (vibe/vibe-acp), the pinned hash is a NAR hash of
+      # the *unpacked* tree (see tools/bump's fetchZip), not the raw archive bytes
+      # pacman needs - there's no way to derive that from flake.nix alone. Emit a
+      # per-arch placeholder instead; gen-pkgbuilds fetches+hashes the raw file
+      # itself and sed-replaces these (see the vibe/vibe-acp branch below).
+      mkPendingPkgbuildArtifacts =
+        urlFor: artifactsTable:
+        lib.mapAttrs (arch: system: {
+          url = urlFor artifactsTable.${system};
+          sha256Hex = "__HASH_${lib.toUpper arch}__";
+        }) pkgbuildArchMap;
+
+      mkBinaryPkgbuildBody =
+        {
+          binName,
+          extraBins ? [ ],
+        }:
+        ''
+          install -Dm755 "$srcdir/$pkgname-$pkgver-$CARCH" "$pkgdir/usr/bin/${binName}"
+        ''
+        + lib.concatMapStrings (extra: ''
+          ln -s ${binName} "$pkgdir/usr/bin/${extra}"
+        '') extraBins;
+
+      mkTarballPkgbuildBody =
+        { binaryPath, binName }:
+        ''
+          rm -f "$pkgname-$pkgver-$CARCH"
+          install -dm755 "$pkgdir/usr/share/$pkgname"
+          cp -r . "$pkgdir/usr/share/$pkgname/"
+          chmod -R u+w "$pkgdir/usr/share/$pkgname"
+          chmod 755 "$pkgdir/usr/share/$pkgname/${binaryPath}"
+          install -dm755 "$pkgdir/usr/bin"
+          ln -s "/usr/share/$pkgname/${binaryPath}" "$pkgdir/usr/bin/${binName}"
+        '';
+
+      grokUrl = platform: "https://x.ai/cli/grok-${grokVersion}-${platform}";
+      grokPkgbuild = mkPkgbuild {
+        pname = "grok-cli";
+        version = grokVersion;
+        description = "Grok CLI";
+        homepage = "https://x.ai/cli";
+        artifacts = mkRawPkgbuildArtifacts (a: grokUrl a.platform) grokArtifacts;
+        packageBody = mkBinaryPkgbuildBody {
+          binName = "grok";
+          extraBins = [ "agent" ];
         };
       };
 
-      vibeAcpArtifacts = {
-        x86_64-linux = {
-          arch = "linux-x86_64";
-          hash = "sha256-5B3ZQ3U2rmM4P6dk6ktQkG6q3S4ralZR0Bms+VDukro=";
-        };
-        aarch64-linux = {
-          arch = "linux-aarch64";
-          hash = "sha256-ubSL6Li33OH+RLUtMMBGaVYRKde0DZxVcPltpNRykbw=";
-        };
-        aarch64-darwin = {
-          arch = "darwin-aarch64";
-          hash = "sha256-gTMVZvP8G5MUPLthxDTjHLM6LxYlgoCAu5os5Lmu86A=";
-        };
-      };
-
-      copilotVersion = "1.0.71";
-      copilotArtifacts = {
-        x86_64-linux = {
-          platform = "linux-x64";
-          hash = "sha256-d56bPlI5nY/fW81hd54/HWBnlrpHi2FK1B+4DVIpELs=";
-        };
-        aarch64-linux = {
-          platform = "linux-arm64";
-          hash = "sha256-dMx82q7TmPJrfXLH1Buiv/QakDUlrqx3g2HW29igxg0=";
-        };
-        aarch64-darwin = {
-          platform = "darwin-arm64";
-          hash = "sha256-DvILAwi24j6dRMFDvwde59Kay7vDhHusuOKWI/LSQ4k=";
+      codexUrl =
+        target:
+        "https://github.com/openai/codex/releases/download/rust-v${codexVersion}/codex-package-${target}.tar.gz";
+      codexPkgbuild = mkPkgbuild {
+        pname = "codex-cli";
+        version = codexVersion;
+        description = "OpenAI Codex CLI";
+        homepage = "https://github.com/openai/codex";
+        artifacts = mkRawPkgbuildArtifacts (a: codexUrl a.target) codexArtifacts;
+        packageBody = mkTarballPkgbuildBody {
+          binaryPath = "bin/codex";
+          binName = "codex";
         };
       };
 
-      opencodeVersion = "1.18.3";
-      opencodeArtifacts = {
-        x86_64-linux = {
-          platform = "linux-x64";
-          hash = "sha256-YPJ7JnnwClEbZTn5fgJEivr1jZxm4kSCheoMUXyoRYM=";
-        };
-        aarch64-linux = {
-          platform = "linux-arm64";
-          hash = "sha256-2gpjEXTro4CyodUfnTZPo4EtpDPnJ0PHJHHUtdpZxp0=";
-        };
-        aarch64-darwin = {
-          platform = "darwin-arm64";
-          hash = "sha256-/8K3SmfWU56vlbPaN1VvkOhYO0FDOOH4TB4cGpa25hc=";
+      copilotUrl =
+        platform:
+        "https://github.com/github/copilot-cli/releases/download/v${copilotVersion}/copilot-${platform}.tar.gz";
+      copilotPkgbuild = mkPkgbuild {
+        pname = "copilot-cli";
+        version = copilotVersion;
+        description = "GitHub Copilot CLI";
+        homepage = "https://github.com/github/copilot-cli";
+        artifacts = mkRawPkgbuildArtifacts (a: copilotUrl a.platform) copilotArtifacts;
+        packageBody = mkTarballPkgbuildBody {
+          binaryPath = "copilot";
+          binName = "copilot";
         };
       };
 
-      protonPassVersion = "1.38.1";
-      protonPassArtifacts = {
-        x86_64-linux = {
-          url = "https://proton.me/download/pass/linux/proton-pass_${protonPassVersion}_amd64.deb";
-          hash = "sha512-4jtjW0CVpZNOH4S1NG+gewXDEkjISzHneTdcPOSIeHOQTHbjtMUriCTZpsG1fBlRftiJeHsvF1aMO38VACFsYg==";
-        };
-        aarch64-darwin = {
-          url = "https://proton.me/download/pass/macos/ProtonPass_${protonPassVersion}.dmg";
-          hash = "sha512-6TtYT8QtlUTD/FkqT0emQKo4mq/2BR6G8MY+F/Z+Urd8cAX9SGDSrrG/NDgZQtVELCOdQSeZZ4DgFNbM/m6CAw==";
+      # Linux-only here (PKGBUILDs never target darwin), so this always resolves to
+      # opencode's .tar.gz/fetchurl artifacts, never its darwin .zip/fetchzip one -
+      # no NAR-hash pending-placeholder dance needed, unlike vibe/vibe-acp.
+      opencodeUrl =
+        platform:
+        "https://github.com/anomalyco/opencode/releases/download/v${opencodeVersion}/opencode-${platform}.tar.gz";
+      opencodePkgbuild = mkPkgbuild {
+        pname = "opencode";
+        version = opencodeVersion;
+        description = "opencode CLI";
+        homepage = "https://github.com/anomalyco/opencode";
+        artifacts = mkRawPkgbuildArtifacts (a: opencodeUrl a.platform) opencodeArtifacts;
+        packageBody = mkTarballPkgbuildBody {
+          binaryPath = "opencode";
+          binName = "opencode";
         };
       };
+
+      kimiUrl =
+        platform:
+        "https://github.com/MoonshotAI/kimi-cli/releases/download/${kimiVersion}/kimi-${kimiVersion}-${platform}.tar.gz";
+      kimiPkgbuild = mkPkgbuild {
+        pname = "kimi-cli";
+        version = kimiVersion;
+        description = "Kimi (Moonshot AI) CLI";
+        homepage = "https://github.com/MoonshotAI/kimi-cli";
+        artifacts = mkRawPkgbuildArtifacts (a: kimiUrl a.platform) kimiArtifacts;
+        packageBody = mkTarballPkgbuildBody {
+          binaryPath = "kimi";
+          binName = "kimi";
+        };
+      };
+
+      vibeUrl =
+        arch:
+        "https://github.com/mistralai/mistral-vibe/releases/download/v${vibeVersion}/vibe-${arch}-${vibeVersion}.zip";
+      vibePkgbuildArtifacts = mkPendingPkgbuildArtifacts (a: vibeUrl a.arch) vibeArtifacts;
+      vibePkgbuild = mkPkgbuild {
+        pname = "mistral-vibe";
+        version = vibeVersion;
+        description = "Mistral Vibe CLI";
+        homepage = "https://github.com/mistralai/mistral-vibe";
+        artifacts = vibePkgbuildArtifacts;
+        packageBody = mkTarballPkgbuildBody {
+          binaryPath = "vibe";
+          binName = "vibe";
+        };
+      };
+
+      vibeAcpUrl =
+        arch:
+        "https://github.com/mistralai/mistral-vibe/releases/download/v${vibeVersion}/vibe-acp-${arch}-${vibeVersion}.zip";
+      vibeAcpPkgbuildArtifacts = mkPendingPkgbuildArtifacts (a: vibeAcpUrl a.arch) vibeAcpArtifacts;
+      vibeAcpPkgbuild = mkPkgbuild {
+        pname = "mistral-vibe-acp";
+        version = vibeVersion;
+        description = "Mistral Vibe ACP";
+        homepage = "https://github.com/mistralai/mistral-vibe";
+        artifacts = vibeAcpPkgbuildArtifacts;
+        packageBody = mkTarballPkgbuildBody {
+          binaryPath = "vibe-acp";
+          binName = "vibe-acp";
+        };
+      };
+
+      vibeVersion = versions.vibe.version;
+      vibeArtifacts = versions.vibe.artifacts;
+
+      vibeAcpArtifacts = versions.vibe-acp.artifacts;
+
+      copilotVersion = versions.copilot.version;
+      copilotArtifacts = versions.copilot.artifacts;
+
+      opencodeVersion = versions.opencode.version;
+      opencodeArtifacts = versions.opencode.artifacts;
+
+      protonPassVersion = versions.proton-pass.version;
+      protonPassArtifacts = versions.proton-pass.artifacts;
 
       # Built straight from Proton's own release feed instead of nixpkgs' pkgs.proton-pass,
       # which tracks releases slower than upstream. Mirrors nixpkgs' own proton-pass recipe
@@ -453,17 +510,8 @@
             '';
           };
 
-      claudeDesktopVersion = "1.22209.3";
-      claudeDesktopArtifacts = {
-        x86_64-linux = {
-          arch = "amd64";
-          hash = "sha256-1Cf0askjPbxNikQaYC8J91C4pfBdH8egAoXXps4HZVw=";
-        };
-        aarch64-linux = {
-          arch = "arm64";
-          hash = "sha256-Vcy0eLItcbRuZpWC565Nb0T8bf8LPVFakWMEnatANLI=";
-        };
-      };
+      claudeDesktopVersion = versions.claude-desktop.version;
+      claudeDesktopArtifacts = versions.claude-desktop.artifacts;
 
       # Repackages Anthropic's official .deb (Linux-only beta, no upstream nixpkgs package yet).
       # Keeps the official co-located app tree intact (usr/lib/claude-desktop/{claude-desktop,resources/})
@@ -580,21 +628,8 @@
           };
         };
 
-      kimiVersion = "1.49.0";
-      kimiArtifacts = {
-        x86_64-linux = {
-          platform = "x86_64-unknown-linux-gnu";
-          hash = "sha256-bOC4P1g8RaZMyfUf/n4ajgPueazaaZRfz4wjNBudiS8=";
-        };
-        aarch64-linux = {
-          platform = "aarch64-unknown-linux-gnu";
-          hash = "sha256-WsVMq84W7eJ7nSBpubiO3uJVKGRue7W++pmAocpx/rs=";
-        };
-        aarch64-darwin = {
-          platform = "aarch64-apple-darwin";
-          hash = "sha256-FQGLILIDruCWWP3GSEDEhG/BfBCNjboaGalVgdPOKSE=";
-        };
-      };
+      kimiVersion = versions.kimi.version;
+      kimiArtifacts = versions.kimi.artifacts;
     in
     {
       packages = forEachSupportedSystem (
@@ -602,7 +637,6 @@
         let
           grokArtifact = grokArtifacts.${system};
           codexArtifact = codexArtifacts.${system};
-          antigravityArtifact = antigravityArtifacts.${system};
           claudeCodeArtifact = claudeCodeArtifacts.${system};
           copilotArtifact = copilotArtifacts.${system};
           opencodeArtifact = opencodeArtifacts.${system};
@@ -637,22 +671,6 @@
               description = "OpenAI Codex CLI";
               homepage = "https://github.com/openai/codex";
               mainProgram = "codex";
-            };
-          };
-
-          antigravity = mkTarballPackage pkgs {
-            pname = "antigravity-cli";
-            version = antigravityVersion;
-            src = pkgs.fetchurl {
-              url = "https://storage.googleapis.com/antigravity-public/antigravity-cli/${antigravityVersion}-6349723456634880/${antigravityArtifact.path}";
-              inherit (antigravityArtifact) hash;
-            };
-            binaryPath = "antigravity";
-            executableName = "agy";
-            meta = {
-              description = "Google Antigravity CLI";
-              homepage = "https://antigravity.google/cli";
-              mainProgram = "agy";
             };
           };
 
@@ -781,7 +799,6 @@
         in
         {
           inherit
-            antigravity
             codex
             copilot
             grok
@@ -792,7 +809,6 @@
             ;
           inherit claude-code;
 
-          agy = antigravity;
           claude = claude-code;
           default = codex;
         }
@@ -803,7 +819,14 @@
           proton-pass = mkProtonPassPackage pkgs system;
         }
         // lib.optionalAttrs (lib.strings.hasSuffix "linux" system) {
+          grok-pkgbuild = pkgs.writeText "PKGBUILD" grokPkgbuild;
+          codex-pkgbuild = pkgs.writeText "PKGBUILD" codexPkgbuild;
           claude-code-pkgbuild = pkgs.writeText "PKGBUILD" claudeCodePkgbuild;
+          copilot-pkgbuild = pkgs.writeText "PKGBUILD" copilotPkgbuild;
+          opencode-pkgbuild = pkgs.writeText "PKGBUILD" opencodePkgbuild;
+          kimi-pkgbuild = pkgs.writeText "PKGBUILD" kimiPkgbuild;
+          vibe-pkgbuild = pkgs.writeText "PKGBUILD" vibePkgbuild;
+          vibe-acp-pkgbuild = pkgs.writeText "PKGBUILD" vibeAcpPkgbuild;
         }
       );
 
@@ -829,10 +852,56 @@
             program = toString (
               pkgs.writeShellScript "gen-pkgbuilds" ''
                 set -euo pipefail
-                out="$PWD/pkgbuilds/claude-code-bin"
-                mkdir -p "$out"
-                install -m644 ${pkgs.writeText "PKGBUILD" claudeCodePkgbuild} "$out/PKGBUILD"
-                echo "wrote $out/PKGBUILD"
+                export PATH="${
+                  lib.makeBinPath [
+                    pkgs.curl
+                    pkgs.jq
+                  ]
+                }:$PATH"
+
+                write() {
+                  local pkgname="$1" drv="$2"
+                  local out="$PWD/pkgbuilds/$pkgname"
+                  mkdir -p "$out"
+                  install -m644 "$drv" "$out/PKGBUILD"
+                  echo "wrote $out/PKGBUILD"
+                }
+
+                # For vibe/vibe-acp: fetch+hash the raw zip ourselves (see
+                # mkPendingPkgbuildArtifacts) and fill in the placeholders write()
+                # left behind.
+                resolve_pending() {
+                  local pkgname="$1" pending="$2"
+                  local out="$PWD/pkgbuilds/$pkgname/PKGBUILD"
+                  local arch url hash
+                  for arch in x86_64 aarch64; do
+                    url=$(jq -r ".$arch" "$pending")
+                    echo "  hashing $pkgname/$arch..."
+                    hash=$(curl -fsSL "$url" | sha256sum | cut -d' ' -f1)
+                    sed -i "s/__HASH_$(echo "$arch" | tr a-z A-Z)__/$hash/" "$out"
+                  done
+                }
+
+                write grok-cli-bin ${pkgs.writeText "PKGBUILD" grokPkgbuild}
+                write codex-cli-bin ${pkgs.writeText "PKGBUILD" codexPkgbuild}
+                write claude-code-bin ${pkgs.writeText "PKGBUILD" claudeCodePkgbuild}
+                write copilot-cli-bin ${pkgs.writeText "PKGBUILD" copilotPkgbuild}
+                write opencode-bin ${pkgs.writeText "PKGBUILD" opencodePkgbuild}
+                write kimi-cli-bin ${pkgs.writeText "PKGBUILD" kimiPkgbuild}
+
+                write mistral-vibe-bin ${pkgs.writeText "PKGBUILD" vibePkgbuild}
+                resolve_pending mistral-vibe-bin ${
+                  pkgs.writeText "vibe-pending.json" (
+                    builtins.toJSON (lib.mapAttrs (_: a: a.url) vibePkgbuildArtifacts)
+                  )
+                }
+
+                write mistral-vibe-acp-bin ${pkgs.writeText "PKGBUILD" vibeAcpPkgbuild}
+                resolve_pending mistral-vibe-acp-bin ${
+                  pkgs.writeText "vibe-acp-pending.json" (
+                    builtins.toJSON (lib.mapAttrs (_: a: a.url) vibeAcpPkgbuildArtifacts)
+                  )
+                }
               ''
             );
           };

@@ -1,5 +1,5 @@
 // Command bump reports (and, with -write, applies) version/hash updates for
-// the CLI tools pinned in ../../flake.nix, by checking each package's own
+// the CLI tools pinned in ../../versions.nix, by checking each package's own
 // upstream release feed (GitHub releases, an apt Packages index, Proton's
 // version.json, ...) instead of hand-tracking releases.
 package main
@@ -35,8 +35,8 @@ func main() {
 }
 
 func run() error {
-	flakePath := flag.String("flake", "../../flake.nix", "path to flake.nix")
-	write := flag.Bool("write", false, "apply updates to flake.nix instead of just reporting them")
+	versionsPath := flag.String("versions", "../../versions.nix", "path to versions.nix")
+	write := flag.Bool("write", false, "apply updates to versions.nix instead of just reporting them")
 	only := flag.String("only", "", "comma-separated list of package names to consider (default: all)")
 	overrides := make(versionOverrides)
 	flag.Var(overrides, "set", "force a package to a specific version, e.g. -set grok=0.3.0 (repeatable)")
@@ -50,13 +50,13 @@ func run() error {
 		}
 	}
 
-	src, err := os.ReadFile(*flakePath)
-	if err != nil {
-		return errors.Wrap(err, "read flake.nix")
-	}
-	text := string(src)
-
 	ctx := context.Background()
+
+	v, err := readVersions(ctx, *versionsPath)
+	if err != nil {
+		return errors.Wrap(err, "read versions.nix")
+	}
+
 	anyChanged := false
 	hadError := false
 
@@ -65,12 +65,13 @@ func run() error {
 			continue
 		}
 
-		current, err := getVersion(text, group.nixVersionVar)
-		if err != nil {
-			fmt.Printf("ERROR %-15s %v\n", group.name, err)
+		primary, ok := v[group.targets[0].nixKey]
+		if !ok {
+			fmt.Printf("ERROR %-15s %q not found in versions.nix\n", group.name, group.targets[0].nixKey)
 			hadError = true
 			continue
 		}
+		current := primary.Version
 
 		target := overrides[group.name]
 		if target == "" {
@@ -96,21 +97,19 @@ func run() error {
 			continue
 		}
 
-		newText, err := applyBump(ctx, text, group, target)
-		if err != nil {
+		if err := applyBump(ctx, v, group, target); err != nil {
 			fmt.Printf("ERROR %-15s applying update: %v\n", group.name, err)
 			hadError = true
 			continue
 		}
-		text = newText
 		anyChanged = true
 	}
 
 	if anyChanged {
-		if err := os.WriteFile(*flakePath, []byte(text), 0o644); err != nil {
-			return errors.Wrap(err, "write flake.nix")
+		if err := writeVersions(ctx, *versionsPath, v); err != nil {
+			return errors.Wrap(err, "write versions.nix")
 		}
-		fmt.Println("wrote", *flakePath)
+		fmt.Println("wrote", *versionsPath)
 	}
 
 	if hadError {
@@ -119,38 +118,38 @@ func run() error {
 	return nil
 }
 
-// applyBump fetches every system's artifact for group at the new version and
-// rewrites its hash + version fields in text, returning the updated text.
-// It touches nothing on error, so a partial fetch failure can't leave a
-// package's tables at inconsistent versions.
-func applyBump(ctx context.Context, text string, group versionGroup, target string) (string, error) {
+// applyBump fetches every system's artifact for every target in group at the
+// new version, then writes the new version and hashes into v. It mutates
+// nothing on error, so a partial fetch failure can't leave a package's
+// entries at inconsistent versions.
+func applyBump(ctx context.Context, v versions, group versionGroup, newVersion string) error {
 	type patch struct {
-		tableVar, system, hash string
+		nixKey, system, hash string
 	}
 	var patches []patch
 
-	for _, table := range group.tables {
-		for _, system := range sortedSystems(table.systems) {
-			fmt.Printf("      %-15s fetching %s (%s)...\n", group.name, system, table.nixVar)
-			art, err := table.systems[system](ctx, target)
+	for _, t := range group.targets {
+		pkg, ok := v[t.nixKey]
+		if !ok {
+			return errors.Errorf("%q not found in versions.nix", t.nixKey)
+		}
+		for _, system := range sortedSystems(pkg.Artifacts) {
+			fmt.Printf("      %-15s fetching %s (%s)...\n", group.name, system, t.nixKey)
+			art, err := t.fetch(ctx, system, pkg.Artifacts[system], newVersion)
 			if err != nil {
-				return "", errors.Wrapf(err, "%s/%s", table.nixVar, system)
+				return errors.Wrapf(err, "%s/%s", t.nixKey, system)
 			}
-			patches = append(patches, patch{table.nixVar, system, art.sri})
+			patches = append(patches, patch{t.nixKey, system, art.sri})
 		}
 	}
 
-	out := text
 	for _, p := range patches {
-		var err error
-		out, err = setHashForSystem(out, p.tableVar, p.system, p.hash)
-		if err != nil {
-			return "", err
-		}
+		v[p.nixKey].Artifacts[p.system]["hash"] = p.hash
 	}
-	out, err := setVersion(out, group.nixVersionVar, target)
-	if err != nil {
-		return "", err
+	for _, t := range group.targets {
+		pkg := v[t.nixKey]
+		pkg.Version = newVersion
+		v[t.nixKey] = pkg
 	}
-	return out, nil
+	return nil
 }

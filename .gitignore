@@ -1,5 +1,5 @@
-pkgbuilds/*/pkg/
-pkgbuilds/*/src/
-pkgbuilds/*/*.pkg.tar.zst
-pkgbuilds/*/*.log
+# makepkg build/download artifacts - only the PKGBUILD itself is tracked.
+pkgbuilds/*/*
+!pkgbuilds/*/PKGBUILD
+
 tools/bump/bump

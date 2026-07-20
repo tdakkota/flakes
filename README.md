@@ -1,9 +1,9 @@
 # flakes
 
 Personal Nix flake for AI coding CLIs and a couple of desktop apps that
-aren't (well) packaged in nixpkgs. Everything is pinned by hand to a
-specific upstream version/hash rather than tracking `latest`, and kept
-current with `tools/bump` (see below).
+aren't (well) packaged in nixpkgs. Everything is pinned in `versions.nix`
+to a specific upstream version/hash rather than tracking `latest`, and
+kept current with `tools/bump` (see below).
 
 ## Packages
 
@@ -13,7 +13,6 @@ current with `tools/bump` (see below).
 | `claude-desktop` | | Claude Desktop (Linux beta, repackaged official `.deb`) |
 | `codex` | `default` | OpenAI Codex CLI |
 | `grok` | | Grok CLI |
-| `antigravity` | `agy` | Google Antigravity CLI |
 | `vibe` | | Mistral Vibe CLI |
 | `vibe-acp` | | Mistral Vibe ACP |
 | `copilot` | | GitHub Copilot CLI |
@@ -32,17 +31,20 @@ nix profile install .#codex
 
 ## Installing on Arch Linux
 
-`claude-code`'s Arch package is generated straight from the same
-version/url/hash data used to build the Nix package (`mkPkgbuild` in
-`flake.nix`), so the two can't drift apart. It isn't published to the AUR,
-so `yay -S` won't find it - build and install it locally instead:
+Every CLI package (all but `claude-desktop` and `proton-pass`) also has an
+Arch `PKGBUILD`, generated from the same version/url/hash data used to
+build the Nix package (`mkPkgbuild` in `flake.nix`) so the two can't drift
+apart. None of these are published to the AUR, so `yay -S` won't find
+them - build and install locally instead:
 
 ```sh
-cd pkgbuilds/claude-code-bin
+cd pkgbuilds/claude-code-bin   # or grok-cli-bin, codex-cli-bin, copilot-cli-bin,
+                                # opencode-bin, kimi-cli-bin, mistral-vibe-bin,
+                                # mistral-vibe-acp-bin
 makepkg -si
 ```
 
-Regenerate the PKGBUILD (e.g. after `tools/bump` updates `flake.nix`) with:
+Regenerate all of them (e.g. after `tools/bump` updates `versions.nix`) with:
 
 ```sh
 nix run .#gen-pkgbuilds
@@ -53,15 +55,13 @@ nix run .#gen-pkgbuilds
 `tools/bump` is a small Go tool that checks each package's real upstream
 feed (GitHub releases, `downloads.claude.ai`, an apt Packages index,
 Proton's `version.json`, ...) and reports or applies version/hash updates
-to `flake.nix`.
+to `versions.nix` - it regenerates the whole file rather than patching it
+in place.
 
 ```sh
 cd tools/bump
-go run . -flake ../../flake.nix          # report only
-go run . -flake ../../flake.nix -write   # apply and rewrite flake.nix
-go run . -flake ../../flake.nix -only claude-code -write
-go run . -flake ../../flake.nix -set grok=0.3.0 -write   # packages with no version feed
+go run .                                    # report only
+go run . -write                             # apply and rewrite versions.nix
+go run . -only claude-code -write
+go run . -set grok=0.3.0 -write             # packages with no version feed
 ```
-
-`grok` and `antigravity` have no discoverable upstream version feed and
-are always reported as manual.

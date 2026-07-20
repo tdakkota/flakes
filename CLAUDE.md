@@ -3,13 +3,17 @@
 Personal Nix flake packaging AI coding CLIs and a couple of desktop apps
 not (well) packaged in nixpkgs. See README.md for the package list.
 
+**When changing what's packaged, how it's installed, or the bump/PKGBUILD
+tooling, update README.md too** - it's the user-facing doc and easy to
+forget since most of this file's own content lives in `flake.nix`.
+
 ## Commands
 
-- Format: `nix run nixpkgs#nixfmt -- flake.nix` (NOT `nix fmt` — it misbehaves in this repo)
+- Format: `nix run nixpkgs#nixfmt -- flake.nix versions.nix` (NOT `nix fmt` — it misbehaves in this repo)
 - Check: `nix flake check --no-build`
 - Build one package: `nix build .#<name> -L`
-- Regenerate PKGBUILDs: `nix run .#gen-pkgbuilds`
-- Check/apply version bumps: `cd tools/bump && go run . -flake ../../flake.nix [-write]`
+- Regenerate all PKGBUILDs: `nix run .#gen-pkgbuilds`
+- Check/apply version bumps: `cd tools/bump && go run . [-write]`
 
 Most `nix` invocations need `dangerouslyDisableSandbox` in this
 environment: the sandbox links dotfiles to `/dev/null`, which breaks Nix's
@@ -18,19 +22,32 @@ to fetch except `githubusercontent.com`.
 
 ## Architecture
 
+- `versions.nix` holds every package's pinned version + per-system
+  artifact fields (platform/target/arch/url/hash - whatever that
+  package's fetch needs). It's generated wholesale by `tools/bump`, not
+  hand-edited - `flake.nix` just does `versions = import ./versions.nix;`
+  and reads from it. This replaced an earlier design that regex-patched
+  `flake.nix` text directly, which was fragile; a separate generated data
+  file the flake merely imports is far more robust.
 - `flake.nix` has three generic builder helpers for simple packages:
   `mkBinaryPackage` (single downloaded executable), `mkTarballPackage`,
   `mkZipPackage`. `claude-desktop` and `proton-pass` don't fit these (they
   need `autoPatchelfHook`/`dpkg`/`asar` handling) and are bespoke
   `stdenv.mkDerivation`s instead.
-- `mkPkgbuild` (also in `flake.nix`) renders Arch `PKGBUILD`s from the same
-  version/url/hash data used to build the Nix package, so the two can't
-  drift apart. Currently only wired up for `claude-code`
-  (`pkgbuilds/claude-code-bin/`).
-- `tools/bump` is a standalone Go module (own `go.mod`) that reads each
-  package's pinned version/hash from `flake.nix` and checks its real
+- `mkPkgbuild` (also in `flake.nix`) renders Arch `PKGBUILD`s from the
+  same version/url/hash data used to build the Nix package, so the two
+  can't drift apart. Wired up for every CLI package except
+  `claude-desktop`/`proton-pass` (GUI apps, out of scope for the current
+  simple-binary/tarball template). `vibe`/`vibe-acp` are the exception:
+  their pinned hash is a NAR hash (see Gotchas), which pacman can't use,
+  so their PKGBUILD ships a `__HASH_X86_64__`/`__HASH_AARCH64__`
+  placeholder that `gen-pkgbuilds` resolves by fetching+hashing the raw
+  archive itself at generation time.
+- `tools/bump` is a standalone Go module (own `go.mod`) that reads
+  `versions.nix` via `nix eval --json --file`, checks each package's real
   upstream feed (GitHub releases, an apt Packages index, Proton's
-  `version.json`, etc.), optionally patching `flake.nix` in place.
+  `version.json`, etc.), and - with `-write` - regenerates the whole file
+  (via a small Nix-value renderer + `nixfmt`), never patches it in place.
 
 ## CI
 
@@ -51,7 +68,5 @@ to fetch except `githubusercontent.com`.
   (NAR hash), not the raw zip bytes. Don't hash the downloaded file
   directly when updating these by hand — use
   `nix store prefetch-file --unpack --json <url>` instead (this is what
-  `tools/bump` does internally).
-- `grok` and `antigravity` have no discoverable upstream version feed
-  (`antigravity`'s download URL embeds an opaque build-id not derivable
-  from the version); `tools/bump` can't auto-check these.
+  `tools/bump` does internally, and it's also why `vibe`/`vibe-acp`'s
+  PKGBUILDs need the live-fetch step described above).

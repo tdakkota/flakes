@@ -1,0 +1,5 @@
+pkgbuilds/*/pkg/
+pkgbuilds/*/src/
+pkgbuilds/*/*.pkg.tar.zst
+pkgbuilds/*/*.log
+tools/bump/bump

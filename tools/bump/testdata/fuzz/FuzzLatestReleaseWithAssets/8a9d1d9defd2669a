@@ -1,0 +1,2 @@
+go test fuzz v1
+[]byte("[{\"tAg_nAme\":\"2.24.5\",\"Assets\":[{\"nAme\":\"vibe-darwin-aarch64-2.24.5.zip\"},{\"nAme\":\"vibe-linux-aarch64-2.24.5.zip\"},{\"nAme\":\"vibe-linux-x86_64-2.24.5.zip\"}]}]")

@@ -10,7 +10,6 @@ import (
 	"hash"
 	"io"
 	"net/http"
-	"os"
 	"os/exec"
 	"sort"
 	"strconv"
@@ -92,39 +91,6 @@ func downloadAndHash(ctx context.Context, url, algo string) (string, error) {
 		return "", errors.Wrapf(err, "download %s", url)
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
-}
-
-// githubLatestTag returns the tag of the latest release of owner/repo, with
-// trimPrefix removed (e.g. "v" or "rust-v").
-func githubLatestTag(ctx context.Context, repo, trimPrefix string) (string, error) {
-	url := "https://api.github.com/repos/" + repo + "/releases/latest"
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return "", errors.Wrap(err, "build request")
-	}
-	req.Header.Set("User-Agent", "flakes-bump/1")
-	req.Header.Set("Accept", "application/vnd.github+json")
-	if tok := os.Getenv("GITHUB_TOKEN"); tok != "" {
-		req.Header.Set("Authorization", "Bearer "+tok)
-	}
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return "", errors.Wrapf(err, "GET %s", url)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", errors.Errorf("GET %s: unexpected status %s", url, resp.Status)
-	}
-
-	var body struct {
-		TagName string `json:"tag_name"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return "", errors.Wrap(err, "decode response")
-	}
-	return strings.TrimPrefix(body.TagName, trimPrefix), nil
 }
 
 // compareVersions compares dot-separated numeric versions (e.g. "1.22209.3"),

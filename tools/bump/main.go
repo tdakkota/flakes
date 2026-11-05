@@ -125,6 +125,7 @@ func run() error {
 func applyBump(ctx context.Context, v versions, group versionGroup, newVersion string) error {
 	type patch struct {
 		nixKey, system, hash string
+		fields               map[string]string
 	}
 	var patches []patch
 
@@ -139,12 +140,15 @@ func applyBump(ctx context.Context, v versions, group versionGroup, newVersion s
 			if err != nil {
 				return errors.Wrapf(err, "%s/%s", t.nixKey, system)
 			}
-			patches = append(patches, patch{t.nixKey, system, art.sri})
+			patches = append(patches, patch{t.nixKey, system, art.sri, art.fields})
 		}
 	}
 
 	for _, p := range patches {
 		v[p.nixKey].Artifacts[p.system]["hash"] = p.hash
+		for name, value := range p.fields {
+			v[p.nixKey].Artifacts[p.system][name] = value
+		}
 	}
 	for _, t := range group.targets {
 		pkg := v[t.nixKey]

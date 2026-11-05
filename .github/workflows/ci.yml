@@ -21,7 +21,10 @@ jobs:
         run: nix flake check --no-build
 
       - name: nixfmt --check
-        run: nix run nixpkgs#nixfmt -- --check flake.nix versions.nix
+        run: nix run nixpkgs#nixfmt -- --check flake.nix versions.nix nix/*.nix nixos/*.nix tests/*.nix
+
+      - name: TUN polkit rule tests
+        run: node --test tests/throne-polkit.test.cjs
 
   go:
     runs-on: ubuntu-latest
@@ -37,6 +40,7 @@ jobs:
 
       - run: go build ./...
       - run: go vet ./...
+      - run: go test ./...
 
       - name: gofmt check
         run: |

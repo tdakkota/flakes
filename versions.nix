@@ -124,15 +124,33 @@
   };
 
   proton-pass = {
-    version = "1.39.1";
+    version = "1.43.0";
     artifacts = {
       aarch64-darwin = {
-        hash = "sha512-axZfdIgjwHZhCTfwvYT2LN3zzYdi1AlRW8+r2oj2FsplBpkv1k4PjmJi7GMYIZ1WPKvhoWdN4+4KqQ7LRv6Mpg==";
-        url = "https://proton.me/download/pass/macos/ProtonPass_1.38.1.dmg";
+        hash = "sha512-n1c12W6h4EPjuJ3V9BdpU+aDO+4FF3IKB+LfI2bEJpYK1kCsdOEHp6cl4N447qAHy0QGOYsBMxv93XlUpjmWiw==";
+        url = "https://proton.me/download/pass/macos/ProtonPass_1.43.0.dmg";
       };
       x86_64-linux = {
-        hash = "sha512-IhKwYHrtb6ktRQJ2TVXmf+OBzL6cRNtDEFD1VhqCeW8lygxxIBaZd3nmbYFcTUIL6823oH+sr6d8L4TpChdy+A==";
-        url = "https://proton.me/download/pass/linux/proton-pass_1.38.1_amd64.deb";
+        hash = "sha512-rBkALdfl5hEP1cpdNC0srL0lKNlZZug8Gsjfko6GUGkn2crR/6+qG1QrtuvxOqqPe15tZJlTGmKqgrv4KnBsYg==";
+        url = "https://proton.me/download/pass/linux/proton-pass_1.43.0_amd64.deb";
+      };
+    };
+  };
+
+  throne = {
+    version = "1.4.0";
+    artifacts = {
+      aarch64-linux = {
+        arch = "arm64";
+        hash = "sha256-gH11PW1fC8ok3hHY5z8HHNcEMwqyPtHslIqpp0jzrVI=";
+        sourceHash = "sha256-nGZrqxsgoo2x1fnnvcswpqVJAy2n1Ifn7EWA7Nmngyc=";
+        url = "https://github.com/throneproj/Throne/releases/download/1.4.0/Throne-1.4.0-debian-arm64-system-qt.deb";
+      };
+      x86_64-linux = {
+        arch = "amd64";
+        hash = "sha256-PHOe5CYAlBcTtW3lg+tBgphivobd5Z4wxNrVj70iCpY=";
+        sourceHash = "sha256-nGZrqxsgoo2x1fnnvcswpqVJAy2n1Ifn7EWA7Nmngyc=";
+        url = "https://github.com/throneproj/Throne/releases/download/1.4.0/Throne-1.4.0-debian-amd64-system-qt.deb";
       };
     };
   };

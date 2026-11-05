@@ -8,10 +8,10 @@ import (
 	"github.com/go-faster/errors"
 )
 
-// artifact is what a per-system fetch produces: the exact Nix SRI hash
-// string to write into that system's "hash" field in versions.nix.
+// artifact contains the pinned hash and any upstream-provided artifact fields.
 type artifact struct {
-	sri string
+	sri    string
+	fields map[string]string
 }
 
 // fetchArtifactFunc builds and hashes the artifact for one Nix system at a
@@ -20,9 +20,7 @@ type artifact struct {
 // it), which is how per-package URL shape stays out of the Go code below.
 type fetchArtifactFunc func(ctx context.Context, system string, fields map[string]string, version string) (artifact, error)
 
-// target is one top-level entry this group writes into versions.nix. Most
-// groups have exactly one; vibe/vibe-acp share a version but are separate
-// entries (separate Nix packages, separate artifact shapes).
+// target names one versions.nix entry updated by a release feed.
 type target struct {
 	nixKey string
 	fetch  fetchArtifactFunc
@@ -119,7 +117,7 @@ func registry() []versionGroup {
 		{
 			name: "vibe",
 			fetchLatest: func(ctx context.Context) (string, error) {
-				return githubLatestTag(ctx, "mistralai/mistral-vibe", "v")
+				return githubLatestTagWithAssets(ctx, "mistralai/mistral-vibe", "v", "vibe")
 			},
 			targets: []target{
 				{
@@ -132,6 +130,14 @@ func registry() []versionGroup {
 						return fetchZip(ctx, url)
 					},
 				},
+			},
+		},
+		{
+			name: "vibe-acp",
+			fetchLatest: func(ctx context.Context) (string, error) {
+				return githubLatestTagWithAssets(ctx, "mistralai/mistral-vibe", "v", "vibe-acp")
+			},
+			targets: []target{
 				{
 					nixKey: "vibe-acp",
 					fetch: func(ctx context.Context, system string, fields map[string]string, version string) (artifact, error) {
@@ -219,6 +225,25 @@ func registry() []versionGroup {
 				fetch:  protonPassArtifact,
 			}},
 		},
+		{
+			name: "throne",
+			fetchLatest: func(ctx context.Context) (string, error) {
+				return githubLatestTag(ctx, "throneproj/Throne", "")
+			},
+			targets: []target{{nixKey: "throne", fetch: func(ctx context.Context, system string, fields map[string]string, version string) (artifact, error) {
+				url := fmt.Sprintf("https://github.com/throneproj/Throne/releases/download/%s/Throne-%s-debian-%s-system-qt.deb", version, version, fields["arch"])
+				result, err := fetchDownload(ctx, "sha256", url)
+				if err != nil {
+					return artifact{}, err
+				}
+				source, err := fetchDownload(ctx, "sha256", fmt.Sprintf("https://github.com/throneproj/Throne/archive/refs/tags/%s.tar.gz", version))
+				if err != nil {
+					return artifact{}, err
+				}
+				result.fields = map[string]string{"url": url, "sourceHash": source.sri}
+				return result, nil
+			}}},
+		},
 	}
 }
 
@@ -256,15 +281,29 @@ func protonPassArtifact(ctx context.Context, system string, fields map[string]st
 	if err != nil {
 		return artifact{}, err
 	}
+	return protonArtifactForSystem(r, system, version)
+}
+
+func protonArtifactForSystem(r protonRelease, system, version string) (artifact, error) {
 	if r.Version != version {
 		return artifact{}, errors.Errorf("requested version %s but feed's latest Stable is %s", version, r.Version)
 	}
-	if len(r.File) == 0 {
-		return artifact{}, errors.Errorf("no File entries for proton-pass %s", version)
+	extension := ".deb"
+	if strings.HasSuffix(system, "darwin") {
+		extension = ".dmg"
 	}
-	sri, err := sriFromHex("sha512", r.File[0].Sha512CheckSum)
-	if err != nil {
-		return artifact{}, err
+	for _, file := range r.File {
+		if !strings.HasSuffix(file.URL, extension) {
+			continue
+		}
+		if len(file.Sha512CheckSum) != 128 {
+			return artifact{}, errors.New("invalid Proton SHA-512 checksum length")
+		}
+		sri, err := sriFromHex("sha512", file.Sha512CheckSum)
+		if err != nil {
+			return artifact{}, err
+		}
+		return artifact{sri: sri, fields: map[string]string{"url": file.URL}}, nil
 	}
-	return artifact{sri: sri}, nil
+	return artifact{}, errors.Errorf("no %s artifact for proton-pass %s", extension, version)
 }

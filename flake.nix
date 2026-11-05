@@ -632,6 +632,8 @@
       kimiArtifacts = versions.kimi.artifacts;
     in
     {
+      nixosModules.throne = import ./nixos/throne.nix { packages = self.packages; };
+
       packages = forEachSupportedSystem (
         { pkgs, system }:
         let
@@ -818,6 +820,19 @@
         // lib.optionalAttrs (protonPassArtifacts ? ${system}) {
           proton-pass = mkProtonPassPackage pkgs system;
         }
+        // lib.optionalAttrs (versions.throne.artifacts ? ${system}) (
+          let
+            throne = import ./nix/throne.nix {
+              inherit pkgs;
+              inherit (versions.throne) version;
+              artifact = versions.throne.artifacts.${system};
+            };
+          in
+          {
+            inherit throne;
+            throne-tun-setup = import ./nix/throne-tun.nix { inherit pkgs throne; };
+          }
+        )
         // lib.optionalAttrs (lib.strings.hasSuffix "linux" system) {
           grok-pkgbuild = pkgs.writeText "PKGBUILD" grokPkgbuild;
           codex-pkgbuild = pkgs.writeText "PKGBUILD" codexPkgbuild;
@@ -904,6 +919,16 @@
                 }
               ''
             );
+          };
+        }
+      );
+
+      checks = forEachSupportedSystem (
+        { pkgs, system }:
+        lib.optionalAttrs (lib.hasSuffix "linux" system) {
+          throne-module = import ./tests/throne-module.nix {
+            inherit self pkgs system;
+            inherit (inputs) nixpkgs;
           };
         }
       );

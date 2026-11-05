@@ -34,18 +34,18 @@
   };
 
   codex = {
-    version = "0.151.0";
+    version = "0.166.0";
     artifacts = {
       aarch64-darwin = {
-        hash = "sha256-y25466gMG8MQpTP28cbJSDd3M7wG+eg3lJM04Eq96cY=";
+        hash = "sha256-VaRAy1eflwq+fHmrGB5UsOpMQZvpnzM7vYaO66ycIfA=";
         target = "aarch64-apple-darwin";
       };
       aarch64-linux = {
-        hash = "sha256-xkrW5PgmCVUqNwaTZbUFKO9J6YauqySlOHgaGKQCdz0=";
+        hash = "sha256-eCG3fdouYoP7H2PzFlF3onHaiDPoV89nPGyhyds7/MY=";
         target = "aarch64-unknown-linux-musl";
       };
       x86_64-linux = {
-        hash = "sha256-bjWsYLhsDox/i895e+i5IgYZn2JTIAtm/wVHJ2+M+lw=";
+        hash = "sha256-HUSyi8SsmTfX01MiZLqmilB842SVag1Ou4VvMxze4lQ=";
         target = "x86_64-unknown-linux-musl";
       };
     };

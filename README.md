@@ -69,9 +69,13 @@ go run . -only claude-code -write
 go run . -set grok=0.3.0 -write             # packages with no version feed
 ```
 
-The daily GitHub workflow checks each package in a separate job and opens a
-PR on `auto/bump-<package>`. One unavailable upstream artifact does not block
-the other packages. Update PRs mention, assign, and request review from
+The daily GitHub workflow checks all packages in one job and batches updates
+into one PR on `auto/bump-versions`. Subsequent runs refresh the same open PR;
+after it is merged, new updates open a new PR. Runs are serialized to avoid
+concurrent writes to the shared branch. One unavailable upstream artifact does
+not block successful updates from other packages, but the run still reports
+failure. A failed check with no changes leaves the existing PR untouched.
+Update PRs mention, assign, and request review from
 `@tdakkota`. Enable "Allow GitHub Actions to create and approve pull requests"
 in the repository's Actions settings so its token can create these PRs.
 Vibe and Vibe ACP track releases independently and select only stable releases

@@ -54,10 +54,8 @@ to fetch except `githubusercontent.com`.
 - `.github/workflows/ci.yml`: `nix flake check --no-build`, `nixfmt
   --check`, and Go build/vet/fmt on every push/PR.
 - `.github/workflows/bump.yml`: runs `tools/bump -write` daily and opens a
-  PR (branch `auto/bump-versions`) when there's a bump — doesn't autocommit
-  directly like ogen's `tidy-autocommit.yml` does for dependabot's go.mod
-  PRs, since there's no dependabot PR to attach to here (dependabot has no
-  Nix ecosystem support, so it can't see these pinned CLI versions at all).
+  single PR on `auto/bump-versions`, refreshing it until merged. Runs are
+  serialized; successful updates are published even if other packages fail.
 - `.github/dependabot.yml` only covers `tools/bump`'s `go.mod` and the
   workflow actions themselves — hence `tools/bump` for everything else.
 

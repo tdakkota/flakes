@@ -52,18 +52,18 @@
   };
 
   copilot = {
-    version = "1.0.82";
+    version = "1.0.106";
     artifacts = {
       aarch64-darwin = {
-        hash = "sha256-wDv8WMRALsMdCcoRw3nhwX6Vw0QfSACdchv1VvzCxC4=";
+        hash = "sha256-7Y94lfFyH7Ep0ItROdFAoBr133FsMZaY/Xn4+3+eGaE=";
         platform = "darwin-arm64";
       };
       aarch64-linux = {
-        hash = "sha256-hsTHepGx/13XMTy+qfhhaZos3OtGlvOGTz8FhOloTg8=";
+        hash = "sha256-FZG3Kg4BwoarPjq6mPaiBLaJXPb5lNFON2mDHI035yw=";
         platform = "linux-arm64";
       };
       x86_64-linux = {
-        hash = "sha256-N/pnaGqeTtjUbc1qnICrUk3qhA7KoKP37fjQn5Ybl6k=";
+        hash = "sha256-uyrGpQwtfO/+47SJ8nj7m6T9OdRnjddbWwIdT+7cw+8=";
         platform = "linux-x64";
       };
     };

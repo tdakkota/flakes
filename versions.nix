@@ -174,19 +174,19 @@
   };
 
   vibe-acp = {
-    version = "2.24.5";
+    version = "3.1.0";
     artifacts = {
       aarch64-darwin = {
         arch = "darwin-aarch64";
-        hash = "sha256-BuWSbaG/5u9KspchWfbwdOf01wOTB5uYiqIrAFtF+KA=";
+        hash = "sha256-82Dey/TpduCv3pzMTj6nDbE7JHZgmuyzAy1W8fiwhdQ=";
       };
       aarch64-linux = {
         arch = "linux-aarch64";
-        hash = "sha256-pHHa6V4RupITxwMmTHbavaz9Hcz1ST3MJPlSgJVw3I4=";
+        hash = "sha256-1QQPFFWZZpk53fNmHDUFDXZTDY8HkElHhRl1PABC/7s=";
       };
       x86_64-linux = {
         arch = "linux-x86_64";
-        hash = "sha256-RXrjPR+C1WzUar7mvv55gy2Rm6Bs56JgbXWbcTHRMh4=";
+        hash = "sha256-hdSJD4HqaKSH6GwR+h9Q0/LCxbR+VHE9ImllhlKT/9M=";
       };
     };
   };

@@ -106,18 +106,18 @@
   };
 
   opencode = {
-    version = "1.18.25";
+    version = "1.19.5";
     artifacts = {
       aarch64-darwin = {
-        hash = "sha256-6iy9O4hUz0ODR4wRahAdB5wX7IujutQ4GQzpzOYDgXA=";
+        hash = "sha256-06oMx0RqXfYbgU793fbaFVcWJNYovkgfJFqzr+4t//M=";
         platform = "darwin-arm64";
       };
       aarch64-linux = {
-        hash = "sha256-Ne93iXQl5BtRg6LCGsT7HU2UTYKpTjySD1e1SQrxGsU=";
+        hash = "sha256-+uW+Ji1pO3xeVihWzEc+WedBdyk22wwGAKwNXtW9CIs=";
         platform = "linux-arm64";
       };
       x86_64-linux = {
-        hash = "sha256-WKNymm80Mt1tKRf8xKlJeIiRoDWBhkatSA4SyUf1bng=";
+        hash = "sha256-WIMQozb6O53zaz8CJbJvZ51FPvqtDPPWbDZR7z7BZHo=";
         platform = "linux-x64";
       };
     };

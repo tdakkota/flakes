@@ -156,19 +156,19 @@
   };
 
   vibe = {
-    version = "2.24.5";
+    version = "2.26.1";
     artifacts = {
       aarch64-darwin = {
         arch = "darwin-aarch64";
-        hash = "sha256-PQw4JuyfhFBCWEsYv1zuhRULQrSi0MKQBYQeRSpCv1Q=";
+        hash = "sha256-8dOPsNk2x/vJT3HH/hMQrp5PUiJMQ4qUyCZHduVz108=";
       };
       aarch64-linux = {
         arch = "linux-aarch64";
-        hash = "sha256-tmM9xCBd/fBA+U1INvJrZMpjcWiVMNzH5n9S/O21pOs=";
+        hash = "sha256-yH++1po4gx4xOzfVS+DM1pP5NFVZvxFTlqlpRCrDTn4=";
       };
       x86_64-linux = {
         arch = "linux-x86_64";
-        hash = "sha256-mXInaxyxiTQch9lhEwdJ3v0YjOdLZ8GiUnIAEoum+nc=";
+        hash = "sha256-fHRAs5mKOeGDvQrPW2iZ+2HZ1h4/9URH/FcoEL4x1vM=";
       };
     };
   };

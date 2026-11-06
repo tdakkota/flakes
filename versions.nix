@@ -20,15 +20,15 @@
   };
 
   claude-desktop = {
-    version = "1.40609.0";
+    version = "4.23118.0";
     artifacts = {
       aarch64-linux = {
         arch = "arm64";
-        hash = "sha256-yX4aoM1JQ3BUsWG87R/qLr+uYEU+YW1bc1JKkUZCF3M=";
+        hash = "sha256-tMBOCDOLMh9cAlQ6tr6BnLufOO8FGj59j/3FtNUkjqQ=";
       };
       x86_64-linux = {
         arch = "amd64";
-        hash = "sha256-qW6W/4601Nf/p4Wrp/wj+GhLEqyD7S70Bg8PCfQXepg=";
+        hash = "sha256-GtmW6MqrBcmzdGRgUcQMtrudhPNxdW8VuNNyiJdRWpc=";
       };
     };
   };

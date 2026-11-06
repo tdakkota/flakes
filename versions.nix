@@ -70,18 +70,18 @@
   };
 
   grok = {
-    version = "1.0.13";
+    version = "1.0.77";
     artifacts = {
       aarch64-darwin = {
-        hash = "sha256-hmng/a3O7CW4wVnDVfQn/72CWDUl13S2qxUiGX6oO4A=";
+        hash = "sha256-GXxmpj5axG4HRQsMoh0UHOZlBQpBIYDxhdrfrhx6Wyo=";
         platform = "macos-aarch64";
       };
       aarch64-linux = {
-        hash = "sha256-uSb8Uwg3Q5biYOfvvWEHIxqNrhPAhN2vD+ibfrs+3SU=";
+        hash = "sha256-sw7uFKZWEk7zydqFd7Xng+8s/6vrK2ecXEljPnfu1XQ=";
         platform = "linux-aarch64";
       };
       x86_64-linux = {
-        hash = "sha256-7feVIVgbtea5Wr74SEkaanQuhg2j4jfr6GooDTDc5ME=";
+        hash = "sha256-twKVCqWCfYVeSTJ4q2IVpOD1vOtbumxiQ6n1XN0UOwo=";
         platform = "linux-x86_64";
       };
     };

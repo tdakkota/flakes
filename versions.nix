@@ -20,50 +20,50 @@
   };
 
   claude-desktop = {
-    version = "4.23118.1";
+    version = "5.1231.2";
     artifacts = {
       aarch64-linux = {
         arch = "arm64";
-        hash = "sha256-wxzPrSJUD2E2gaO38LXmuaDx7EiSKaHebp6vW3Bb12c=";
+        hash = "sha256-16AUTmlGl15sXzOkjbCMvgi8zaBL2xnPIlSqaQvOJcE=";
       };
       x86_64-linux = {
         arch = "amd64";
-        hash = "sha256-sJzN1ys4kWyWN9SFSNtw53xCXrLgm7RnRlQJ0v+dKHo=";
+        hash = "sha256-600Wya/wppY2bYhyj3T6VRNr58/ePB/jWvQGK0WVW28=";
       };
     };
   };
 
   codex = {
-    version = "0.167.0";
+    version = "0.167.1";
     artifacts = {
       aarch64-darwin = {
-        hash = "sha256-r0XtRdlA15mICWIsHAKW0wmO19f61pUoRCLCKL1FRRc=";
+        hash = "sha256-W8vFhmy8oZ+SmfeITps5ucy1RplpwXCx8tLNb8Sx7nI=";
         target = "aarch64-apple-darwin";
       };
       aarch64-linux = {
-        hash = "sha256-DeJh7PHn8wKKeVLwP8ogk/dJJ304WQt4uzL4VndWu7c=";
+        hash = "sha256-7z4UQ6d5XVlvFgGlM9ciWhAwSI1gyWWvHwYQq5WIkDE=";
         target = "aarch64-unknown-linux-musl";
       };
       x86_64-linux = {
-        hash = "sha256-O7916D3mtYrtKPLPbjOtQj7DH9RwChRXuUvlV+pafG4=";
+        hash = "sha256-qUXfPfg+hJ3Xt0eH4n+KRZwZRrDjr+Pcju+KjRhF/U8=";
         target = "x86_64-unknown-linux-musl";
       };
     };
   };
 
   copilot = {
-    version = "1.0.108";
+    version = "1.0.109";
     artifacts = {
       aarch64-darwin = {
-        hash = "sha256-VnGY582Uf1sFvvfwNhFuYobdzYKG7EWDAIKyjGZNv7A=";
+        hash = "sha256-nCGtZjzpj1AMHwti4KbWh7wbFmHln0whYcwRRRWgGUI=";
         platform = "darwin-arm64";
       };
       aarch64-linux = {
-        hash = "sha256-sMeMSVQ7uKEWPoEtzQYBpf8f/AZ4ia3WNRsFaNdncuY=";
+        hash = "sha256-Z52wbDFoRX2BVM2M6TuCL3xG0xaeYdpMC3isbhEMSvY=";
         platform = "linux-arm64";
       };
       x86_64-linux = {
-        hash = "sha256-TBTjIMXNECNK1Wy6hVUJIG5FGOHASngKwFqOHBJL2X0=";
+        hash = "sha256-RafzfoIujIcl7aayfertVdrSaI/0Fj7SfsIuIyk8t2E=";
         platform = "linux-x64";
       };
     };

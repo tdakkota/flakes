@@ -138,19 +138,19 @@
   };
 
   throne = {
-    version = "1.4.1";
+    version = "1.4.2";
     artifacts = {
       aarch64-linux = {
         arch = "arm64";
-        hash = "sha256-FVmEwAZb7Q4w9PrJfqepZf6m2sIHSe1zshQHBbcJh+s=";
-        sourceHash = "sha256-4gK/PV1fNwaA1nBKNxCvpNgNgFouEZPkmto9OIPoKEE=";
-        url = "https://github.com/throneproj/Throne/releases/download/1.4.1/Throne-1.4.1-debian-arm64-system-qt.deb";
+        hash = "sha256-pysCBeijys/a7lKIpYPtbOLJyJcEx5MtjgedToz32j4=";
+        sourceHash = "sha256-Im0jR4IpubYLnXJPq+fycV6D4vS5eLc8HcbMc/FhUYY=";
+        url = "https://github.com/throneproj/Throne/releases/download/1.4.2/Throne-1.4.2-debian-arm64-system-qt.deb";
       };
       x86_64-linux = {
         arch = "amd64";
-        hash = "sha256-wMMpJRVPW5P7XKK11qMAjl857DUE1avzGPUJlYI/6OM=";
-        sourceHash = "sha256-4gK/PV1fNwaA1nBKNxCvpNgNgFouEZPkmto9OIPoKEE=";
-        url = "https://github.com/throneproj/Throne/releases/download/1.4.1/Throne-1.4.1-debian-amd64-system-qt.deb";
+        hash = "sha256-bTrThuJ7yQ3ktev0AHNRZt4R56mfeudeFwS+iaJH4os=";
+        sourceHash = "sha256-Im0jR4IpubYLnXJPq+fycV6D4vS5eLc8HcbMc/FhUYY=";
+        url = "https://github.com/throneproj/Throne/releases/download/1.4.2/Throne-1.4.2-debian-amd64-system-qt.deb";
       };
     };
   };

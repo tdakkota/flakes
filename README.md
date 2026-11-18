@@ -93,8 +93,8 @@ Update PRs mention, assign, and request review from `@tdakkota`, and enable
 automatic merging with a merge commit. Approve the PR once its changes look right; GitHub
 merges it after the required `flake-check` and `go` jobs pass. New commits
 dismiss stale approvals, so refreshed updates require another approval.
-The updater explicitly dispatches CI on its branch using `GITHUB_TOKEN`,
-avoiding a separate workflow approval or a personal access token.
+CI runs when a review is submitted, including approval. This starts checks for
+bot-created PRs without a separate workflow approval or a personal access token.
 
 Repository settings must allow auto-merge and GitHub Actions PR creation.
 The `main` branch requires one approving review and both CI checks; admins

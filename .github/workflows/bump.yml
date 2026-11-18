@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: write
   contents: write
   pull-requests: write
 
@@ -85,15 +84,6 @@ jobs:
             versions.nix
             pkgbuilds/
             packages/throne/PKGBUILD
-
-      # GITHUB_TOKEN does not start PR checks automatically; dispatch avoids
-      # requiring a separate workflow approval or another credential.
-      - name: Start CI for the update branch
-        if: steps.pr.outputs.pull-request-operation == 'created' || steps.pr.outputs.pull-request-operation == 'updated'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: gh workflow run ci.yml --ref auto/bump-versions
 
       - name: Enable automatic merge
         if: steps.pr.outputs.pull-request-number != '' && steps.pr.outputs.pull-request-operation != 'closed'

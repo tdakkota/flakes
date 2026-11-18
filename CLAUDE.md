@@ -55,7 +55,7 @@ to fetch except `githubusercontent.com`.
   single PR on `auto/bump-versions`, refreshing it until merged. Runs are
   serialized; successful updates are published even if other packages fail.
   Proton Pass waits for a stable release shared by its Linux and macOS feeds.
-- Update PRs dispatch CI and enable auto-merge with merge commits. `main` requires
+- Update PRs enable auto-merge with merge commits; reviews start CI. `main` requires
   one approval plus `flake-check` and `go`; new commits dismiss approvals.
   Admins retain direct push access.
 - `.github/dependabot.yml` only covers `tools/bump`'s `go.mod` and the

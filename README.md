@@ -89,9 +89,16 @@ after it is merged, new updates open a new PR. Runs are serialized to avoid
 concurrent writes to the shared branch. One unavailable upstream artifact does
 not block successful updates from other packages, but the run still reports
 failure. A failed check with no changes leaves the existing PR untouched.
-Update PRs mention, assign, and request review from
-`@tdakkota`. Enable "Allow GitHub Actions to create and approve pull requests"
-in the repository's Actions settings so its token can create these PRs.
+Update PRs mention, assign, and request review from `@tdakkota`, and enable
+automatic merging with a merge commit. Approve the PR once its changes look right; GitHub
+merges it after the required `flake-check` and `go` jobs pass. New commits
+dismiss stale approvals, so refreshed updates require another approval.
+The updater explicitly dispatches CI on its branch using `GITHUB_TOKEN`,
+avoiding a separate workflow approval or a personal access token.
+
+Repository settings must allow auto-merge and GitHub Actions PR creation.
+The `main` branch requires one approving review and both CI checks; admins
+retain their ability to push directly.
 Vibe and Vibe ACP track releases independently and select only stable releases
 that publish every supported platform's binary. Proton Pass selects the newest
 stable version present in both the Linux and macOS feeds, waiting for staged

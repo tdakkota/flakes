@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: write
   contents: write
   pull-requests: write
 
@@ -56,6 +57,7 @@ jobs:
           fi
 
       - name: Create or update pull request
+        id: pr
         if: steps.bump.outcome == 'success' || steps.changes.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v8
         with:
@@ -68,7 +70,9 @@ jobs:
             download URLs and checksums. Generated PKGBUILDs were refreshed and
             `nix flake check --no-build` passed.
 
-            This PR is refreshed by subsequent runs until it is merged.
+            Approve this PR to allow automatic merging with a merge commit after CI passes.
+            Subsequent runs refresh this PR until it is merged; changed commits
+            require a fresh approval.
             Upstream check result: `${{ steps.bump.outcome }}`. Successful updates
             are included even if another package could not be updated.
 
@@ -81,6 +85,23 @@ jobs:
             versions.nix
             pkgbuilds/
             packages/throne/PKGBUILD
+
+      # GITHUB_TOKEN does not start PR checks automatically; dispatch avoids
+      # requiring a separate workflow approval or another credential.
+      - name: Start CI for the update branch
+        if: steps.pr.outputs.pull-request-operation == 'created' || steps.pr.outputs.pull-request-operation == 'updated'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run ci.yml --ref auto/bump-versions
+
+      - name: Enable automatic merge
+        if: steps.pr.outputs.pull-request-number != '' && steps.pr.outputs.pull-request-operation != 'closed'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.pull-request-number }}
+        run: gh pr merge "$PR_NUMBER" --auto --merge
 
       - name: Report upstream failures
         if: always() && steps.bump.outcome == 'failure'

@@ -23,10 +23,14 @@ jobs:
 
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
+        with:
+          use-flakehub: disabled
+          use-gha-cache: enabled
 
       - uses: actions/setup-go@v7
         with:
           go-version: stable
+          cache-dependency-path: tools/bump/go.sum
 
       - name: Check upstream feeds and regenerate versions.nix
         id: bump
@@ -45,7 +49,7 @@ jobs:
       - name: Check for package changes
         id: changes
         run: |
-          if git diff --quiet -- versions.nix pkgbuilds/; then
+          if git diff --quiet -- versions.nix pkgbuilds/ packages/throne/PKGBUILD; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -76,6 +80,7 @@ jobs:
           add-paths: |
             versions.nix
             pkgbuilds/
+            packages/throne/PKGBUILD
 
       - name: Report upstream failures
         if: always() && steps.bump.outcome == 'failure'

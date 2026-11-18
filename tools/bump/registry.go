@@ -214,11 +214,10 @@ func registry() []versionGroup {
 		{
 			name: "proton-pass",
 			fetchLatest: func(ctx context.Context) (string, error) {
-				r, err := protonLatestStable(ctx, "https://proton.me/download/PassDesktop/linux/version.json")
-				if err != nil {
-					return "", err
-				}
-				return r.Version, nil
+				return protonLatestCommonStable(ctx, map[string]string{
+					"x86_64-linux":   "https://proton.me/download/PassDesktop/linux/version.json",
+					"aarch64-darwin": "https://proton.me/download/PassDesktop/macos/version.json",
+				})
 			},
 			targets: []target{{
 				nixKey: "proton-pass",
@@ -277,16 +276,16 @@ func protonPassArtifact(ctx context.Context, system string, fields map[string]st
 		versionJSONURL = "https://proton.me/download/PassDesktop/macos/version.json"
 	}
 
-	r, err := protonLatestStable(ctx, versionJSONURL)
+	releases, err := fetchProtonReleases(ctx, versionJSONURL)
 	if err != nil {
 		return artifact{}, err
 	}
-	return protonArtifactForSystem(r, system, version)
+	return protonArtifactAtVersion(releases, system, version)
 }
 
 func protonArtifactForSystem(r protonRelease, system, version string) (artifact, error) {
 	if r.Version != version {
-		return artifact{}, errors.Errorf("requested version %s but feed's latest Stable is %s", version, r.Version)
+		return artifact{}, errors.Errorf("requested version %s but release is %s", version, r.Version)
 	}
 	extension := ".deb"
 	if strings.HasSuffix(system, "darwin") {

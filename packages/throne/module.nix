@@ -39,7 +39,7 @@ in
     };
     security.polkit.enable = lib.mkIf cfg.tunMode.enable true;
     security.polkit.extraConfig = lib.mkIf (cfg.tunMode.enable && config.services.resolved.enable) (
-      builtins.readFile ../nix/throne-tun.rules
+      builtins.readFile ./tun.rules
     );
   };
 }

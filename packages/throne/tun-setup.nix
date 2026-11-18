@@ -26,9 +26,7 @@ pkgs.writeShellApplication {
   runtimeEnv = {
     THRONE_PACKAGE = toString throne;
     THRONE_WRAPPER = "${wrapper}/bin/security-wrapper";
-    THRONE_POLKIT_RULE = toString (
-      pkgs.writeText "throne-tun.rules" (builtins.readFile ./throne-tun.rules)
-    );
+    THRONE_POLKIT_RULE = toString (pkgs.writeText "throne-tun.rules" (builtins.readFile ./tun.rules));
   };
-  text = builtins.readFile ../scripts/setup-throne-tun.sh;
+  text = builtins.readFile ./setup-tun.sh;
 }

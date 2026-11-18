@@ -178,35 +178,62 @@ type protonRelease struct {
 	} `json:"File"`
 }
 
-// protonLatestStable returns the highest-versioned "Stable" release from a
-// Proton desktop app's version.json feed.
-func protonLatestStable(ctx context.Context, versionJSONURL string) (protonRelease, error) {
+func fetchProtonReleases(ctx context.Context, versionJSONURL string) ([]protonRelease, error) {
 	body, err := httpGet(ctx, versionJSONURL)
 	if err != nil {
-		return protonRelease{}, err
+		return nil, err
 	}
 	defer body.Body.Close()
-
 	var feed struct {
 		Releases []protonRelease `json:"Releases"`
 	}
 	if err := json.NewDecoder(body.Body).Decode(&feed); err != nil {
-		return protonRelease{}, errors.Wrap(err, "decode version.json")
+		return nil, errors.Wrap(err, "decode version.json")
 	}
+	return feed.Releases, nil
+}
 
-	var best protonRelease
-	for _, r := range feed.Releases {
-		if r.CategoryName != "Stable" {
-			continue
+// protonLatestCommonStable waits for every platform's feed to publish the release.
+func protonLatestCommonStable(ctx context.Context, feeds map[string]string) (string, error) {
+	var common map[string]bool
+	for _, system := range sortedSystems(feeds) {
+		releases, err := fetchProtonReleases(ctx, feeds[system])
+		if err != nil {
+			return "", err
 		}
-		if best.Version == "" || compareVersions(r.Version, best.Version) > 0 {
-			best = r
+		available := make(map[string]bool)
+		for _, release := range releases {
+			if release.CategoryName != "Stable" || release.Version == "" {
+				continue
+			}
+			if _, err := protonArtifactForSystem(release, system, release.Version); err != nil {
+				continue
+			}
+			if common == nil || common[release.Version] {
+				available[release.Version] = true
+			}
+		}
+		common = available
+	}
+	var best string
+	for version := range common {
+		if best == "" || compareVersions(version, best) > 0 {
+			best = version
 		}
 	}
-	if best.Version == "" {
-		return protonRelease{}, errors.Errorf("no Stable release found in %s", versionJSONURL)
+	if best == "" {
+		return "", errors.New("no common Stable release with artifacts for all Proton platforms")
 	}
 	return best, nil
+}
+
+func protonArtifactAtVersion(releases []protonRelease, system, version string) (artifact, error) {
+	for _, release := range releases {
+		if release.CategoryName == "Stable" && release.Version == version {
+			return protonArtifactForSystem(release, system, version)
+		}
+	}
+	return artifact{}, errors.Errorf("proton-pass %s (%s) not found in Stable feed", version, system)
 }
 
 // fetchZipNarHash shells out to `nix store prefetch-file --unpack` to get the

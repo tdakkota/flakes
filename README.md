@@ -34,20 +34,34 @@ nix profile install .#codex
 
 ## Installing on Arch Linux
 
-The upstream CLI packages (excluding the desktop apps and TUN installer) also have an
-Arch `PKGBUILD`, generated from the same version/url/hash data used to
-build the Nix package (`mkPkgbuild` in `flake.nix`) so the two can't drift
-apart. None of these are published to the AUR, so `yay -S` won't find
-them - build and install locally instead:
+Every upstream application, including Claude Desktop, Proton Pass, and Throne,
+has an Arch `PKGBUILD` generated from the pinned version, URL, and checksum
+data used by Nix. The optional `throne-tun-setup` installer is Nix-specific.
+None of these are published to the AUR, so `yay -S` won't find them. Build
+and install locally instead:
 
 ```sh
 cd pkgbuilds/claude-code-bin   # or grok-cli-bin, codex-cli-bin, copilot-cli-bin,
                                 # opencode-bin, kimi-cli-bin, mistral-vibe-bin,
-                                # mistral-vibe-acp-bin
+                                # mistral-vibe-acp-bin, claude-desktop-bin,
+                                # proton-pass-bin
 makepkg -si
 ```
 
-Regenerate all of them (e.g. after `tools/bump` updates `versions.nix`) with:
+Throne keeps its PKGBUILD alongside its implementation. From the repository root:
+
+```sh
+cd packages/throne
+makepkg -si
+```
+
+Desktop packages repackage the official `.deb` files and retain their bundled
+Electron runtimes. Throne builds its Qt GUI from the pinned source and uses
+the matching release's core. Throne's PKGBUILD supports both Linux architectures;
+Proton Pass supports only `x86_64`, matching upstream. Installing these packages
+does not grant Throne's core TUN permissions.
+
+Regenerate all PKGBUILDs (including `packages/throne/PKGBUILD`) with:
 
 ```sh
 nix run .#gen-pkgbuilds
@@ -79,9 +93,15 @@ Update PRs mention, assign, and request review from
 `@tdakkota`. Enable "Allow GitHub Actions to create and approve pull requests"
 in the repository's Actions settings so its token can create these PRs.
 Vibe and Vibe ACP track releases independently and select only stable releases
-that publish every supported platform's binary.
+that publish every supported platform's binary. Proton Pass selects the newest
+stable version present in both the Linux and macOS feeds, waiting for staged
+rollouts to finish before updating the shared pin.
 
 ## Throne and TUN permissions
+
+`packages/throne/` contains Throne's Nix package, Arch PKGBUILD template and
+generated PKGBUILD, NixOS module, optional TUN installer, polkit rule, and tests.
+Run its rule tests with `node --test packages/throne/polkit.test.cjs`.
 
 ```sh
 nix build .#throne

@@ -6,7 +6,7 @@ const vm = require("node:vm");
 
 let rule;
 vm.runInNewContext(
-  fs.readFileSync(path.join(__dirname, "../nix/throne-tun.rules"), "utf8"),
+  fs.readFileSync(path.join(__dirname, "tun.rules"), "utf8"),
   {
     polkit: {
       addRule: (callback) => { rule = callback; },

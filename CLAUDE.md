@@ -34,15 +34,13 @@ to fetch except `githubusercontent.com`.
   `mkZipPackage`. `claude-desktop` and `proton-pass` don't fit these (they
   need `autoPatchelfHook`/`dpkg`/`asar` handling) and are bespoke
   `stdenv.mkDerivation`s instead.
-- `mkPkgbuild` (also in `flake.nix`) renders Arch `PKGBUILD`s from the
-  same version/url/hash data used to build the Nix package, so the two
-  can't drift apart. Wired up for every CLI package except
-  `claude-desktop`/`proton-pass` (GUI apps, out of scope for the current
-  simple-binary/tarball template). `vibe`/`vibe-acp` are the exception:
-  their pinned hash is a NAR hash (see Gotchas), which pacman can't use,
-  so their PKGBUILD ships a `__HASH_X86_64__`/`__HASH_AARCH64__`
-  placeholder that `gen-pkgbuilds` resolves by fetching+hashing the raw
-  archive itself at generation time.
+- `mkPkgbuild` renders Arch recipes from the same pins used by Nix.
+  CLI recipes live in `pkgbuilds/`; desktop templates live in
+  `nix/desktop-pkgbuilds.nix`.
+- `packages/throne/` holds its Nix package, Arch template and generated
+  PKGBUILD, NixOS module, installer, rules, and tests.
+- Vibe's NAR hashes cannot be used by pacman. `gen-pkgbuilds` fetches and
+  hashes raw archives to replace the generated checksum placeholders.
 - `tools/bump` is a standalone Go module (own `go.mod`) that reads
   `versions.nix` via `nix eval --json --file`, checks each package's real
   upstream feed (GitHub releases, an apt Packages index, Proton's
@@ -56,6 +54,7 @@ to fetch except `githubusercontent.com`.
 - `.github/workflows/bump.yml`: runs `tools/bump -write` daily and opens a
   single PR on `auto/bump-versions`, refreshing it until merged. Runs are
   serialized; successful updates are published even if other packages fail.
+  Proton Pass waits for a stable release shared by its Linux and macOS feeds.
 - `.github/dependabot.yml` only covers `tools/bump`'s `go.mod` and the
   workflow actions themselves — hence `tools/bump` for everything else.
 

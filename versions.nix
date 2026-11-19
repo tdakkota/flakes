@@ -2,18 +2,18 @@
 # Regenerate with: cd tools/bump && go run . -write
 {
   claude-code = {
-    version = "2.1.327";
+    version = "2.1.328";
     artifacts = {
       aarch64-darwin = {
-        hash = "sha256-dtSCBckmyKaXjPwhcbYxvNAeILut0IVji7LsV76pHFs=";
+        hash = "sha256-6FVHGQ74zZgwM7phsXGUBFpv6gADXaNJ7+q+2GutrMk=";
         platform = "darwin-arm64";
       };
       aarch64-linux = {
-        hash = "sha256-rPDvL52o1asI8ZPwB+GaBsv7YIuWovH3WNY6kqOGz/g=";
+        hash = "sha256-MH+LraJ7N9t1U/rHXoYATj2/9akx/8YRtU/nEM4etSE=";
         platform = "linux-arm64";
       };
       x86_64-linux = {
-        hash = "sha256-NDx0S6oUv9OChqfLkIcQUfBDeZVtpsW4A6nmYBmnask=";
+        hash = "sha256-qYLTgDC5fnUISK3Sy7LfbZpw1VRKIsqbIWo0m6JYZeg=";
         platform = "linux-x64";
       };
     };

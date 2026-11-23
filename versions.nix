@@ -124,15 +124,15 @@
   };
 
   proton-pass = {
-    version = "1.44.0";
+    version = "1.44.1";
     artifacts = {
       aarch64-darwin = {
-        hash = "sha512-vFTXSPOweVIOcZkpX2QZyyQ5QvmjSs1qGrS69ZehRpKPECPJSfTzJ8/dV2goKk++/JlwiDSZzYxBgjggwnaWHQ==";
-        url = "https://proton.me/download/pass/macos/ProtonPass_1.44.0.dmg";
+        hash = "sha512-yWA6tGLb5c3AJUFNh2lj9j+EwulJ//vrQE/gA7JAsNOkc0xIzs27+aaWWvllHRiF/xk1FelTO5snypqSCNb2hA==";
+        url = "https://proton.me/download/pass/macos/ProtonPass_1.44.1.dmg";
       };
       x86_64-linux = {
-        hash = "sha512-cLmzwFB0p5y8jvypLDl01WyjStHX0sqAgXEWrz8PsaQCIFUPBa9aTckf91TFqvs3ixXb1ljVckHnEckjuU1PMA==";
-        url = "https://proton.me/download/pass/linux/proton-pass_1.44.0_amd64.deb";
+        hash = "sha512-7CrYOhdyYD5YdSM5ASDwFehRtB2xBTaCxaiBIi0gbcazExhajF0+8Hoift8+egp7B/BYN7U3XR9ZCEtG2H1z3w==";
+        url = "https://proton.me/download/pass/linux/proton-pass_1.44.1_amd64.deb";
       };
     };
   };

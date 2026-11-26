@@ -52,18 +52,18 @@
   };
 
   copilot = {
-    version = "1.0.115";
+    version = "1.0.116";
     artifacts = {
       aarch64-darwin = {
-        hash = "sha256-8IWLv/XjXE/pLZegBhy0oqErBt76z1USt3yilBdaEs8=";
+        hash = "sha256-rKoidxKGCXjYpzp6ZDlfZNuix3/KsjBPohqZXxI1VYQ=";
         platform = "darwin-arm64";
       };
       aarch64-linux = {
-        hash = "sha256-iJtCPOfg3UGimLlXFtPY/oDcMPH9nPVBmpW2+41OG8g=";
+        hash = "sha256-ujIHr9hYqTtjxczYPFP0P9sg/AD9QyYKUy+xS1+NB3Y=";
         platform = "linux-arm64";
       };
       x86_64-linux = {
-        hash = "sha256-4Bl1vzpzeRsMCt/fDXCTuGFhhttht4szYEsSSAaAiBY=";
+        hash = "sha256-/+qDOYCpdnoYr/f9hFkIWgRCZsJspqntr+Wc3P9xjHk=";
         platform = "linux-x64";
       };
     };
@@ -138,19 +138,19 @@
   };
 
   throne = {
-    version = "1.4.2";
+    version = "1.4.5";
     artifacts = {
       aarch64-linux = {
         arch = "arm64";
-        hash = "sha256-pysCBeijys/a7lKIpYPtbOLJyJcEx5MtjgedToz32j4=";
-        sourceHash = "sha256-Im0jR4IpubYLnXJPq+fycV6D4vS5eLc8HcbMc/FhUYY=";
-        url = "https://github.com/throneproj/Throne/releases/download/1.4.2/Throne-1.4.2-debian-arm64-system-qt.deb";
+        hash = "sha256-yKFl3LG/2493m+MUXBbFwDEGizc590nDmwrUBrJqK/8=";
+        sourceHash = "sha256-1P6UJcJPRrlpSiEABSwalvzPxUQQU9pIliSHEbbz/K4=";
+        url = "https://github.com/throneproj/Throne/releases/download/1.4.5/Throne-1.4.5-debian-arm64-system-qt.deb";
       };
       x86_64-linux = {
         arch = "amd64";
-        hash = "sha256-bTrThuJ7yQ3ktev0AHNRZt4R56mfeudeFwS+iaJH4os=";
-        sourceHash = "sha256-Im0jR4IpubYLnXJPq+fycV6D4vS5eLc8HcbMc/FhUYY=";
-        url = "https://github.com/throneproj/Throne/releases/download/1.4.2/Throne-1.4.2-debian-amd64-system-qt.deb";
+        hash = "sha256-3IOihkmzGINuf6JokxF29W6lryvx4sF9uGTIMFD2OeI=";
+        sourceHash = "sha256-1P6UJcJPRrlpSiEABSwalvzPxUQQU9pIliSHEbbz/K4=";
+        url = "https://github.com/throneproj/Throne/releases/download/1.4.5/Throne-1.4.5-debian-amd64-system-qt.deb";
       };
     };
   };
